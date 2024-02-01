@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyceli"
-version = "0.0.0"
+version = "0.0.1"
 description = "Infrastructure for python"
 authors = ["Jose Diaz"]
 license = "MIT License"
