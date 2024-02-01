@@ -1,3 +1,3 @@
-# pyceli
+# piceli
 
-Pyceli: infrastructure management with python
+piceli: infrastructure management with python

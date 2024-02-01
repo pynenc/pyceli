@@ -1,32 +1,32 @@
-# Contributing to pyceli
+# Contributing to piceli
 
-Thank you for your interest in contributing to pyceli! At this moment, the project is in its initial development phase and is not yet ready for contributions from the community. We are working hard to reach a Minimum Viable Product (MVP) and establish a solid foundation for the project.
+Thank you for your interest in contributing to piceli! At this moment, the project is in its initial development phase and is not yet ready for contributions from the community. We are working hard to reach a Minimum Viable Product (MVP) and establish a solid foundation for the project.
 
 Once the project reaches a stage where we are ready to accept contributions, we will update this CONTRIBUTING guide with detailed instructions on how to contribute. In the meantime, feel free to watch the repository for updates and engage in discussions in the issues.
 
 We appreciate your understanding and look forward to collaborating with you in the near future!
 
 Best regards,
-pyceli
+piceli
 
 ## Setting Up the Development Environment
 
-To contribute to pyceli once it's open for contributions, follow these steps to set up your development environment:
+To contribute to piceli once it's open for contributions, follow these steps to set up your development environment:
 
-1. **Fork the Repository**: Start by forking the pyceli repository on GitHub to your own account.
+1. **Fork the Repository**: Start by forking the piceli repository on GitHub to your own account.
 
 2. **Clone the Fork**: Clone your fork to your local machine.
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/pyceli.git
-cd pyceli
+git clone https://github.com/YOUR_USERNAME/piceli.git
+cd piceli
 ```
 
 3. **Install Docker**: Ensure you have Docker installed on your system as it might be used for running services such as databases or other dependencies.
 
 - Docker Installation: [Get Docker](https://docs.docker.com/get-docker/)
 
-4. **Install Poetry**: pyceli uses Poetry for dependency management. Install Poetry as per the official documentation: [Poetry Installation](https://python-poetry.org/docs/#installation).
+4. **Install Poetry**: piceli uses Poetry for dependency management. Install Poetry as per the official documentation: [Poetry Installation](https://python-poetry.org/docs/#installation).
 
 5. **Set Up the Project**: Inside the project directory, set up your local development environment using Poetry. This will install all dependencies, including those needed for development.
 

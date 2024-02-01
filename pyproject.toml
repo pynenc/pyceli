@@ -1,13 +1,13 @@
 [tool.poetry]
-name = "pyceli"
+name = "piceli"
 version = "0.0.1"
 description = "Infrastructure for python"
 authors = ["Jose Diaz"]
 license = "MIT License"
 readme = "README.md"
-homepage = "https://pyceli.pynenc.org"
-documentation = "https://docs.pyceli.pynenc.org"
-repository = "https://github.com/pynenc/pyceli"
+homepage = "https://piceli.pynenc.org"
+documentation = "https://docs.piceli.pynenc.org"
+repository = "https://github.com/pynenc/piceli"
 classifiers = [
     "Development Status :: 1 - Planning",
     "Intended Audience :: Developers",
@@ -19,7 +19,7 @@ classifiers = [
 
 
 [tool.poetry.scripts]
-pynenc = 'pyceli.__main__:main'
+pynenc = 'piceli.__main__:main'
 
 
 [tool.poetry.dependencies]
@@ -86,7 +86,7 @@ ignore = [
 exclude = ["legacy_libs/"]
 
 [tool.mypy]
-files = ["pyceli"]
+files = ["piceli"]
 warn_unused_configs = true
 ignore_missing_imports = true
 disallow_untyped_defs = true
