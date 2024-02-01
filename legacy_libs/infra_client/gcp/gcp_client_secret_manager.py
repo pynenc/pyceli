@@ -55,7 +55,11 @@ class GSMVersion:
     @classmethod
     def from_gsm(cls, version: SecretVersion) -> "GSMVersion":
         """Builds our Helper from GSM SecretVersion instance"""
-        return cls(version_path=version.name, version_id=int(version.name.split("/versions/")[-1]), state=version.state)
+        return cls(
+            version_path=version.name,
+            version_id=int(version.name.split("/versions/")[-1]),
+            state=version.state,
+        )
 
     @property
     def is_enabled(self) -> bool:
@@ -71,7 +75,8 @@ class GSMVersion:
     @property
     def is_destroyed(self) -> bool:
         """The secret version has been permanently deleted, and the secret data cannot be accessed.
-        The metadata, such as the version number, creation timestamp, and state, is retained for auditing purposes"""
+        The metadata, such as the version number, creation timestamp, and state, is retained for auditing purposes
+        """
         return self.state == SecretVersion.State.DESTROYED
 
     def __hash__(self) -> int:
@@ -90,7 +95,11 @@ class GSMSecret:
     def from_gsm(cls, secret: Secret, versions: list[SecretVersion]) -> "GSMSecret":
         """Builds our Helper from GSM a Secret and a its list of SecretVersion"""
         gsm_versions = [GSMVersion.from_gsm(version) for version in versions]
-        return cls(secret_path=secret.name, secret_id=secret.name.split("/secrets/")[-1], versions=gsm_versions)
+        return cls(
+            secret_path=secret.name,
+            secret_id=secret.name.split("/secrets/")[-1],
+            versions=gsm_versions,
+        )
 
     def has_enabled_versions(self) -> bool:
         """Checks if the secret has any version enabled"""
@@ -115,8 +124,12 @@ class GSMClient:
         self._project_secrets_cache: dict[str, dict[str, GSMSecret]] = defaultdict(dict)
 
     def _refresh_project_secrets(self, project_id: str) -> None:
-        for secret in self.client.list_secrets(request={"parent": f"projects/{project_id}"}):
-            versions = list(self.client.list_secret_versions(request={"parent": secret.name}))
+        for secret in self.client.list_secrets(
+            request={"parent": f"projects/{project_id}"}
+        ):
+            versions = list(
+                self.client.list_secret_versions(request={"parent": secret.name})
+            )
             gsm_secret = GSMSecret.from_gsm(secret, versions)
             self._project_secrets_cache[project_id][gsm_secret.secret_id] = gsm_secret
 
@@ -136,7 +149,9 @@ class GSMClient:
         self.client.destroy_secret_version(request={"name": version.version_path})
         version.state = SecretVersion.State.DESTROYED  # type: ignore
 
-    def get_project_secret(self, project_id: str, secret_id: str) -> Optional[GSMSecret]:
+    def get_project_secret(
+        self, project_id: str, secret_id: str
+    ) -> Optional[GSMSecret]:
         """Returns de GSMSecret instace for project_id and secret_id if exists"""
         return self.get_project_secrets(project_id).get(secret_id)
 
@@ -144,19 +159,30 @@ class GSMClient:
     def client(self) -> secretmanager.SecretManagerServiceClient:
         """lazy evaluatio of Google Secret Manager client"""
         if not self._client:
-            self._client = secretmanager.SecretManagerServiceClient(credentials=self.credentials)
+            self._client = secretmanager.SecretManagerServiceClient(
+                credentials=self.credentials
+            )
         return self._client
 
-    def get_secrets_versions_paths(self, project_id: str, secret_ids: list[str], version: str = "latest") -> list[str]:
+    def get_secrets_versions_paths(
+        self, project_id: str, secret_ids: list[str], version: str = "latest"
+    ) -> list[str]:
         """gets a list of paths for each of the secret_ids in the project and version"""
-        return [self.client.secret_version_path(project_id, sid, version) for sid in secret_ids]
+        return [
+            self.client.secret_version_path(project_id, sid, version)
+            for sid in secret_ids
+        ]
 
     def get_secrets_paths(self, project_id: str, secret_ids: list[str]) -> list[str]:
         """gets a list of paths for each of the secret_ids in the project"""
         return [self.client.secret_path(project_id, sid) for sid in secret_ids]
 
     def _set_expected_policy_bindings(
-        self, bindings: RepeatedProtocol[Binding], members: list[str], secret_id: str, only_check: bool
+        self,
+        bindings: RepeatedProtocol[Binding],
+        members: list[str],
+        secret_id: str,
+        only_check: bool,
     ) -> None:
         """Modify (in place) the bindings objects with the expected bindings for the required members"""
         TO_DELETE_ROLES: list[str] = []  # pylint: disable=invalid-name
@@ -177,9 +203,16 @@ class GSMClient:
                     log.warning(f"The unexpected role in {binding} will be deleted")
                 else:
                     bindings.remove(binding)
-            elif ACCESSOR_ROLE != binding.role and ACCESSOR_ROLE + "_withcond_" in binding.role:
-                log.warning(msg := f"Ignoring temporary authorization of {binding.members=} on {secret_id=}")
-                send_text_alert_only_to_teams("There are temporary authorization on Google Secret Manager" + msg)
+            elif (
+                ACCESSOR_ROLE != binding.role
+                and ACCESSOR_ROLE + "_withcond_" in binding.role
+            ):
+                log.warning(
+                    msg := f"Ignoring temporary authorization of {binding.members=} on {secret_id=}"
+                )
+                send_text_alert_only_to_teams(
+                    "There are temporary authorization on Google Secret Manager" + msg
+                )
                 continue
             elif (existing := set(binding.members)) != (required := set(members)):
                 to_delete = existing - required
@@ -195,10 +228,14 @@ class GSMClient:
                     )
                     continue
                 for to_delete_member in authorized_deletes:
-                    log.warning(f"Removing unexpected members {to_delete_member} from role {binding.role}")
+                    log.warning(
+                        f"Removing unexpected members {to_delete_member} from role {binding.role}"
+                    )
                     binding.members.remove(to_delete_member)
                 for to_add_member in new_members:
-                    log.warning(f"Adding new member {to_add_member} from role {binding.role}")
+                    log.warning(
+                        f"Adding new member {to_add_member} from role {binding.role}"
+                    )
                     binding.members.append(to_add_member)
         return
 
@@ -209,7 +246,9 @@ class GSMClient:
         members shuld be typed: ie'serviceAccount:...., group:...., user:.....'
         """
         if not members:
-            raise GSMException(f"There's no members to authorize on {secret_id=}, that makes the secret useless")
+            raise GSMException(
+                f"There's no members to authorize on {secret_id=}, that makes the secret useless"
+            )
         # member needs to contain the type
         # https://cloud.google.com/sdk/gcloud/reference/alpha/functions/add-iam-policy-binding#REQUIRED-FLAGS
         secret_path = self.client.secret_path(project_id, secret_id)
@@ -217,20 +256,32 @@ class GSMClient:
             policy = self.client.get_iam_policy(request={"resource": secret_path})
         except NotFound as ex:
             if only_check:
-                log.warning(f"Secret {secret_path=} does not exists, will be created before checking IAM policies")
+                log.warning(
+                    f"Secret {secret_path=} does not exists, will be created before checking IAM policies"
+                )
                 return
             raise GSMException(f"Secret {secret_path=} does not exists") from ex
 
         original_bindings = deepcopy(policy.bindings)
-        self._set_expected_policy_bindings(policy.bindings, members, secret_id, only_check)
+        self._set_expected_policy_bindings(
+            policy.bindings, members, secret_id, only_check
+        )
         # validate policies
         if original_bindings and original_bindings == policy.bindings:
-            log.info(f"Nothing to do in secret:{secret_path}, contains expected {members=} for accessor role")
+            log.info(
+                f"Nothing to do in secret:{secret_path}, contains expected {members=} for accessor role"
+            )
         elif only_check:
-            log.warning(f"Changes are required in secret:{secret_path} bindings:{policy.bindings}, will be applied")
+            log.warning(
+                f"Changes are required in secret:{secret_path} bindings:{policy.bindings}, will be applied"
+            )
         else:
-            new_policy = self.client.set_iam_policy(request={"resource": secret_path, "policy": policy})
-            log.warning(f"Changes applied to secret: {secret_path}, new_policy:{new_policy.bindings}")
+            new_policy = self.client.set_iam_policy(
+                request={"resource": secret_path, "policy": policy}
+            )
+            log.warning(
+                f"Changes applied to secret: {secret_path}, new_policy:{new_policy.bindings}"
+            )
 
     def authorize_temporary_access_to_typed_member(
         self, project_id: str, secret_id: str, member: str, duration_seconds: int
@@ -265,17 +316,27 @@ class GSMClient:
         )
         binding = Binding(role=ACCESSOR_ROLE, members=[member], condition=condition)
         policy.bindings.append(binding)
-        log.warning(f"Adding temporary {binding.role} to member {member} for {duration_text}")
-        new_policy = self.client.set_iam_policy(request={"resource": secret_path, "policy": policy})
-        log.info(f"The policy of the secret {secret_id} has been modified {new_policy=}")
+        log.warning(
+            f"Adding temporary {binding.role} to member {member} for {duration_text}"
+        )
+        new_policy = self.client.set_iam_policy(
+            request={"resource": secret_path, "policy": policy}
+        )
+        log.info(
+            f"The policy of the secret {secret_id} has been modified {new_policy=}"
+        )
 
-    def exists_secret_and_has_enabled_versions(self, project_id: str, secret_id: str) -> bool:
+    def exists_secret_and_has_enabled_versions(
+        self, project_id: str, secret_id: str
+    ) -> bool:
         """Checks if the secret already exists and has at least one version enabled"""
         if secret := self.get_project_secret(project_id, secret_id):
             return secret.has_enabled_versions()
         return False
 
-    def create_secrets_if_not_exists(self, project_id: str, secret_ids: set[str], only_check: bool) -> None:
+    def create_secrets_if_not_exists(
+        self, project_id: str, secret_ids: set[str], only_check: bool
+    ) -> None:
         """create the secrets if do not exists already"""
         for secret_id in secret_ids:
             if not self.exists_secret_and_has_enabled_versions(project_id, secret_id):
@@ -294,9 +355,13 @@ class GSMClient:
                         }
                     )
                 except AlreadyExists:
-                    log.warning(f"Secret {secret_id=} existed without any version (probably unexpected retry)")
+                    log.warning(
+                        f"Secret {secret_id=} existed without any version (probably unexpected retry)"
+                    )
                 if secret_id.endswith("__POSTGRES_PASSWORD"):
-                    log.warning("postgres_pwd already existed before GSM, needs to be reused first time GSM runs")
+                    log.warning(
+                        "postgres_pwd already existed before GSM, needs to be reused first time GSM runs"
+                    )
                     # TODO! once deployed in all the clusters DELETE THIS!!!
                     import os  # pylint: disable=import-outside-toplevel
 
@@ -309,12 +374,19 @@ class GSMClient:
                     password = generate_random_password()
                 payload = password.encode("UTF-8")
                 self.client.add_secret_version(
-                    request={"parent": self.client.secret_path(project_id, secret_id), "payload": {"data": payload}}
+                    request={
+                        "parent": self.client.secret_path(project_id, secret_id),
+                        "payload": {"data": payload},
+                    }
                 )
                 log.warning(f"new secret version added for {secret_id}")
 
     def clean_up(
-        self, project_id: str, expected_secret_ids: set[str], to_delete_secret_ids: set[str], only_check: bool
+        self,
+        project_id: str,
+        expected_secret_ids: set[str],
+        to_delete_secret_ids: set[str],
+        only_check: bool,
     ) -> None:
         """This function takes care of keeping only required secret/versions in GSM
         - If there is a secret in GSM that do not exists in expected_secret_ids
@@ -338,7 +410,10 @@ class GSMClient:
                         "(either granted to a service account or marked for deletion at SECRET_IDS_FOR_DELETION)"
                     )
             else:
-                if len(versions := secret.get_not_destroyed_versions()) > MAX_VERSIONS_PER_SECRET:
+                if (
+                    len(versions := secret.get_not_destroyed_versions())
+                    > MAX_VERSIONS_PER_SECRET
+                ):
                     delete_count = len(secret.versions) - MAX_VERSIONS_PER_SECRET
                     if only_check:
                         log.warning(
@@ -348,5 +423,7 @@ class GSMClient:
                         )
                     else:
                         for version in versions[:delete_count]:
-                            log.warning(f"Destroying version {version.version_id} from {msg}")
+                            log.warning(
+                                f"Destroying version {version.version_id} from {msg}"
+                            )
                             self.delete_secret_version(version)

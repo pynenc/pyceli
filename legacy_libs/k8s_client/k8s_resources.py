@@ -26,19 +26,27 @@ class PodResources:
         )
 
     @classmethod
-    def from_quantity_dict(cls, resources: dict[str, int | float | None]) -> "PodResources":
+    def from_quantity_dict(
+        cls, resources: dict[str, int | float | None]
+    ) -> "PodResources":
         """creates a PodResources object from a dict containing the quantity in k"""
         return cls(
             **{
                 k.replace("-", "_"): PodResources.bytes_to_str(v, k)
                 for k, v in resources.items()
-                if k in ["memory", "cpu", "ephemeral-storage", "ephemeral_storage"] and v is not None and v != 0
+                if k in ["memory", "cpu", "ephemeral-storage", "ephemeral_storage"]
+                and v is not None
+                and v != 0
             }
         )
 
     def to_dict(self) -> dict[str, str]:
         """creates a dict from a PodResources object"""
-        return {k.replace("_", "-"): v for k, v in self.__dict__.items() if k in ["memory", "cpu", "ephemeral_storage"]}
+        return {
+            k.replace("_", "-"): v
+            for k, v in self.__dict__.items()
+            if k in ["memory", "cpu", "ephemeral_storage"]
+        }
 
     def to_quantity_dict(self) -> dict[str, Optional[float]]:
         """creates a dict from a PodResources object containing the quantity in k"""
@@ -55,7 +63,9 @@ class PodResources:
         if self.cpu:
             _resources["cpu"] = float(parse_quantity(self.cpu))
         if self.ephemeral_storage:
-            _resources["ephemeral_storage"] = float(parse_quantity(self.ephemeral_storage))
+            _resources["ephemeral_storage"] = float(
+                parse_quantity(self.ephemeral_storage)
+            )
         object.__setattr__(self, "_resources", _resources)
 
     def get_k8s_request(self) -> dict:
@@ -105,7 +115,9 @@ class PodResources:
         for arg in set(self.resources).union(set(other.resources)):
             # if arg specified in any of PodResources add both (0 by default), otherwise keep it None
             if arg in self.resources or arg in other.resources:
-                kwargs[arg] = self.bytes_to_str(self.get_quantity(arg) + other.get_quantity(arg), arg)
+                kwargs[arg] = self.bytes_to_str(
+                    self.get_quantity(arg) + other.get_quantity(arg), arg
+                )
         return PodResources(**kwargs)
 
     def __sub__(self, other: "PodResources") -> "PodResources":
@@ -113,7 +125,9 @@ class PodResources:
         for arg in set(self.resources).union(set(other.resources)):
             # if arg specified in any of PodResources add both (0 by default), otherwise keep it None
             if arg in self.resources or arg in other.resources:
-                kwargs[arg] = self.bytes_to_str(self.get_quantity(arg) - other.get_quantity(arg), arg)
+                kwargs[arg] = self.bytes_to_str(
+                    self.get_quantity(arg) - other.get_quantity(arg), arg
+                )
         return PodResources(**kwargs)
 
     def __abs__(self) -> "PodResources":
@@ -129,9 +143,13 @@ class PodResources:
             kwargs: dict[str, str] = {}
             for arg in set(self.resources):
                 if arg == "cpu":
-                    kwargs[arg] = self.bytes_to_str(float(self.get_quantity(arg)) * other, arg)
+                    kwargs[arg] = self.bytes_to_str(
+                        float(self.get_quantity(arg)) * other, arg
+                    )
                 else:
-                    kwargs[arg] = self.bytes_to_str(int(self.get_quantity(arg)) * other, arg)
+                    kwargs[arg] = self.bytes_to_str(
+                        int(self.get_quantity(arg)) * other, arg
+                    )
             return PodResources(**kwargs)
         return NotImplemented
 
@@ -143,21 +161,30 @@ class PodResources:
     def __truediv__(self, other: "PodResources") -> float:
         """this will return the ratio between the two PodResources (based in the max ratio of any resource)"""
 
-    def __truediv__(self, other: Union[float, int, "PodResources"]) -> Union["PodResources", float]:
+    def __truediv__(
+        self, other: Union[float, int, "PodResources"]
+    ) -> Union["PodResources", float]:
         if isinstance(other, (float, int)):
             kwargs: dict[str, str] = {}
             for arg in set(self.resources):
                 if arg == "cpu":
-                    kwargs[arg] = self.bytes_to_str(float(self.get_quantity(arg)) / other, arg)
+                    kwargs[arg] = self.bytes_to_str(
+                        float(self.get_quantity(arg)) / other, arg
+                    )
                 else:
-                    kwargs[arg] = self.bytes_to_str(int(self.get_quantity(arg)) / other, arg)
+                    kwargs[arg] = self.bytes_to_str(
+                        int(self.get_quantity(arg)) / other, arg
+                    )
             return PodResources(**kwargs)
         if isinstance(other, PodResources):
             result = 0.0
             for arg in set(self.resources).union(set(other.resources)):
                 # if arg specified in any of PodResources add both (0 by default), otherwise keep it None
                 if arg in self.resources and arg in other.resources:
-                    result = max(result, float(self.get_quantity(arg)) / float(other.get_quantity(arg)))
+                    result = max(
+                        result,
+                        float(self.get_quantity(arg)) / float(other.get_quantity(arg)),
+                    )
             return result
         return NotImplemented
 
@@ -197,7 +224,9 @@ class PodResources:
         """returns the ratio between cpu and memory (CPU:memory ratio (vCPU:GiB)"""
         if self.get_quantity("cpu") == 0 or self.get_quantity("memory") == 0:
             return 0.0
-        return float(self.get_quantity("memory") / 1073741824 / self.get_quantity("cpu"))
+        return float(
+            self.get_quantity("memory") / 1073741824 / self.get_quantity("cpu")
+        )
 
 
 @dataclass
@@ -211,7 +240,10 @@ class ContainerResourcesData:
     @property
     def max_usage(self) -> Optional[float]:
         """returns the max usage of the pod max(used_cpu/requested_cpu, used_memory/requested_memory)"""
-        if self.used_resources == PodResources() or self.requested_resources == PodResources():
+        if (
+            self.used_resources == PodResources()
+            or self.requested_resources == PodResources()
+        ):
             return None
         requested_dict = self.requested_resources.to_quantity_dict()
         used_dict = self.used_resources.to_quantity_dict()
@@ -261,7 +293,9 @@ class PodResourcesData:
     @property
     def summary(self) -> list[str]:
         """Returns a list of string summarizing pod data"""
-        summary = [f"Pod {self.pod_name} (status: {self.pod_status}, max_usage: {self.max_usage})"]
+        summary = [
+            f"Pod {self.pod_name} (status: {self.pod_status}, max_usage: {self.max_usage})"
+        ]
         for container in self.containers.values():
             summary.append(f"  {container}")
         return summary
@@ -316,7 +350,10 @@ class ClusterResources:
 
     @classmethod
     def from_cluster_info(
-        cls, nodes: list[client.V1Node], pods: list[client.V1Pod], pods_metrics: list[dict]
+        cls,
+        nodes: list[client.V1Node],
+        pods: list[client.V1Pod],
+        pods_metrics: list[dict],
     ) -> "ClusterResources":
         """creates a ClusterResources object from a list of kubernetes nodes"""
         nodes_resources = []
@@ -341,22 +378,34 @@ class ClusterResources:
                 node_name=pod.spec.node_name,
                 last_update=None,
             )
-            last_update = pod.metadata.deletion_timestamp or pod.metadata.creation_timestamp
+            last_update = (
+                pod.metadata.deletion_timestamp or pod.metadata.creation_timestamp
+            )
             if pod.status.conditions:
                 last_update = max(
                     last_update,
-                    max(c.last_transition_time for c in pod.status.conditions if c.last_transition_time),
+                    max(
+                        c.last_transition_time
+                        for c in pod.status.conditions
+                        if c.last_transition_time
+                    ),
                 )
             for container_status in pod.status.container_statuses or []:
                 if container_status.state.terminated:
-                    last_update = max(last_update, container_status.state.terminated.finished_at)
+                    last_update = max(
+                        last_update, container_status.state.terminated.finished_at
+                    )
                     if container_status.state.terminated.reason == "OOMKilled":
                         pods_map[pod.metadata.name].pod_status = "OOMKilled"
                         pods_map[pod.metadata.name].pod_status_reason = "OOMKilled"
             for container in pod.spec.containers:
-                pods_map[pod.metadata.name].containers[container.name] = ContainerResourcesData(
+                pods_map[pod.metadata.name].containers[
+                    container.name
+                ] = ContainerResourcesData(
                     container_name=container.name,
-                    requested_resources=PodResources.from_dict(container.resources.requests),
+                    requested_resources=PodResources.from_dict(
+                        container.resources.requests
+                    ),
                     used_resources=PodResources(),
                 )
             pods_map[pod.metadata.name].last_update = last_update
@@ -365,7 +414,9 @@ class ClusterResources:
             if _pod := pods_map.get(pod_metrics["metadata"]["name"]):
                 for container in pod_metrics["containers"]:
                     if (c_name := container["name"]) in _pod.containers:
-                        _pod.containers[c_name].used_resources = PodResources.from_dict(container["usage"])
+                        _pod.containers[c_name].used_resources = PodResources.from_dict(
+                            container["usage"]
+                        )
                     else:
                         _pod.containers[c_name] = ContainerResourcesData(
                             container_name=c_name,

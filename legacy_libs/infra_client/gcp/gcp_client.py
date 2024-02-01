@@ -10,7 +10,13 @@ import time
 from typing import Optional, Any, ClassVar, TypeVar, Callable
 import yaml  # type: ignore[import]
 
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed, after_log
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_fixed,
+    after_log,
+)
 
 import google.auth
 from google.oauth2 import service_account
@@ -41,7 +47,12 @@ class ResourceLifecycleState(Enum):
     # The project has been marked for deletion by the user (by invoking projects.delete) or by the system (Google Cloud Platform). This can generally be reversed by invoking projects.undelete.
 
 
-Resource = TypeVar("Resource", resourcemanager_v3.Organization, resourcemanager_v3.Folder, resourcemanager_v3.Project)
+Resource = TypeVar(
+    "Resource",
+    resourcemanager_v3.Organization,
+    resourcemanager_v3.Folder,
+    resourcemanager_v3.Project,
+)
 ResourceClient = TypeVar(
     "ResourceClient",
     resourcemanager_v3.OrganizationsClient,
@@ -77,10 +88,12 @@ class ResourceManagerClient(ABC):
         self._cache_deleted: dict[str, Any] = {}
 
     @property
-    def api(self) -> ResourceClient:
+    def api(self) -> ResourceClient:  # type: ignore
         """lazy evaluation of the resourcemanager_v3 API"""
         if not self._api:
-            self._api = getattr(resourcemanager_v3, f"{self.resource.value}sClient")(credentials=self.credentials)
+            self._api = getattr(resourcemanager_v3, f"{self.resource.value}sClient")(
+                credentials=self.credentials
+            )
         return self._api
 
     def get_cache_key(self, obj: Resource) -> str:
@@ -101,7 +114,9 @@ class ResourceManagerClient(ABC):
                 elif obj.state == self.api_obj.State.ACTIVE:
                     self._cache[key] = obj
                 else:
-                    log.warning(f"Ignoring non Active {self.api_keyword} {key}, detail: {obj}")
+                    log.warning(
+                        f"Ignoring non Active {self.api_keyword} {key}, detail: {obj}"
+                    )
                 break
         return self._cache.get(key)
 
@@ -148,7 +163,9 @@ class ResourceManagerClient(ABC):
                 self._cache_deleted.pop(key, None)
 
         def same_parent(other: Any) -> bool:
-            return getattr(obj, "parent", "noParent...") == getattr(other, "parent", "noParent...")
+            return getattr(obj, "parent", "noParent...") == getattr(
+                other, "parent", "noParent..."
+            )
 
         # Start calling method _get to fill the caches if it's the first call
         current_obj = self._get(key := self.get_cache_key(obj))
@@ -157,7 +174,9 @@ class ResourceManagerClient(ABC):
             log.warning(f"{self.api_keyword} {key} marked for deletion, undeleting it.")
             run_api_op(key, "undelete", name=self._cache_deleted[key].name)
             if only_check and not same_parent(self._cache_deleted[key]):
-                log.info(f"{self.api_keyword} {key} will be moved after undeleteing it.")
+                log.info(
+                    f"{self.api_keyword} {key} will be moved after undeleteing it."
+                )
         # Check cache again, if object was undeleted, check if has to change folder
         if current_obj := self._get(key):
             if not same_parent(current_obj):
@@ -186,7 +205,9 @@ class OrganizationClient(ResourceManagerClient):
     def apply(self, display_name: str, only_check: bool) -> None:
         """If the organization does not exists, raises an exception"""
         if only_check:
-            self._apply(resourcemanager_v3.Organization(display_name=display_name), only_check)
+            self._apply(
+                resourcemanager_v3.Organization(display_name=display_name), only_check
+            )
         if not self._get(display_name):
             raise RuntimeError(f"Organization {display_name} does not exists")
 
@@ -200,11 +221,16 @@ class FolderClient(ResourceManagerClient):
 
     def exists(self, display_name: str, parent_name: str) -> bool:
         """Check if the organization exists"""
-        return self._exists(resourcemanager_v3.Folder(parent=parent_name, display_name=display_name))
+        return self._exists(
+            resourcemanager_v3.Folder(parent=parent_name, display_name=display_name)
+        )
 
     def apply(self, display_name: str, parent_name: str, only_check: bool) -> None:
         """Creates the GCP folder resource if does not already exists"""
-        self._apply(resourcemanager_v3.Folder(parent=parent_name, display_name=display_name), only_check)
+        self._apply(
+            resourcemanager_v3.Folder(parent=parent_name, display_name=display_name),
+            only_check,
+        )
 
 
 class ProjectClient(ResourceManagerClient):
@@ -247,15 +273,21 @@ class ProjectClient(ResourceManagerClient):
     def is_billing_enabled(self, project: resourcemanager_v3.Project) -> bool:
         """Get billing info for the project"""
         if project.name not in self._billing_cache:
-            billing_api = discovery.build("cloudbilling", "v1", credentials=self.credentials)
-            self._billing_cache[project.name] = billing_api.projects().getBillingInfo(name=project.name).execute()
+            billing_api = discovery.build(
+                "cloudbilling", "v1", credentials=self.credentials
+            )
+            self._billing_cache[project.name] = (
+                billing_api.projects().getBillingInfo(name=project.name).execute()
+            )
         return self._billing_cache[project.name]["billingEnabled"]
 
     @property
     def billing_account_name(self) -> str:
         """Gets the name of a billing account"""
         if not self._billing_account:
-            billing_api = discovery.build("cloudbilling", "v1", credentials=self.credentials)
+            billing_api = discovery.build(
+                "cloudbilling", "v1", credentials=self.credentials
+            )
             billing_accounts = billing_api.billingAccounts().list().execute()
             if len(billing_accounts["billingAccounts"]) == 0:
                 raise RuntimeError(
@@ -264,110 +296,167 @@ class ProjectClient(ResourceManagerClient):
             self._billing_account = billing_accounts["billingAccounts"][0]
         return self._billing_account["name"]  # type: ignore
 
-    def apply_billing(self, project: resourcemanager_v3.Project, only_check: bool) -> None:
+    def apply_billing(
+        self, project: resourcemanager_v3.Project, only_check: bool
+    ) -> None:
         """Add the project to a billing account if necessary"""
         if self.is_billing_enabled(project):
             log.info(f"billing is enabled in project {project.project_id}")
         elif only_check:
-            log.warning(f"Project {project.project_id} has no billing enabled, will be added to a billing account")
+            log.warning(
+                f"Project {project.project_id} has no billing enabled, will be added to a billing account"
+            )
         else:
             log.warning(
                 f"Enabling billing for project {project.project_id} in billing account {self.billing_account_name}"
             )
-            billing_api = discovery.build("cloudbilling", "v1", credentials=self.credentials)
+            billing_api = discovery.build(
+                "cloudbilling", "v1", credentials=self.credentials
+            )
             billing_info = {
                 "name": project.name,
                 "projectId": project.project_id,
                 "billingAccountName": self.billing_account_name,
                 "billingEnabled": True,
             }
-            billing_api.projects().updateBillingInfo(name=project.name, body=billing_info).execute()
+            billing_api.projects().updateBillingInfo(
+                name=project.name, body=billing_info
+            ).execute()
 
     def missing_apis(self, project: resourcemanager_v3.Project) -> set[str]:
         """Gets a list of disabled APIs that should be enabled on the project"""
         if project.name not in self._enabled_apis_cache:
-            service_api = discovery.build("serviceusage", "v1", credentials=self.credentials)
-            request = service_api.services().list(parent=project.name, filter="state:ENABLED")
+            service_api = discovery.build(
+                "serviceusage", "v1", credentials=self.credentials
+            )
+            request = service_api.services().list(
+                parent=project.name, filter="state:ENABLED"
+            )
             while request is not None:
                 response = request.execute()
                 for service in response.get("services", {}):
-                    self._enabled_apis_cache[project.name].add(service["config"]["name"])
+                    self._enabled_apis_cache[project.name].add(
+                        service["config"]["name"]
+                    )
                 request = service_api.services().list_next(request, response)
         return self.REQUIRED_APIS - self._enabled_apis_cache[project.name]
 
-    def enable_missing_apis(self, project: resourcemanager_v3.Project, only_check: bool) -> None:
+    def enable_missing_apis(
+        self, project: resourcemanager_v3.Project, only_check: bool
+    ) -> None:
         """Enable the missing REQUIRED_APIS for the project"""
         if not (missing_apis := self.missing_apis(project)):
-            log.info(f"Project {project.project_id} has all the required APIs({self.REQUIRED_APIS}) enabled")
+            log.info(
+                f"Project {project.project_id} has all the required APIs({self.REQUIRED_APIS}) enabled"
+            )
         elif only_check:
-            log.warning(f"Project {project.project_id} APIs({missing_apis}) will be enabled")
+            log.warning(
+                f"Project {project.project_id} APIs({missing_apis}) will be enabled"
+            )
         else:
             log.warning(f"Enabling Project {project.project_id} APIs:{missing_apis}")
-            service_api = discovery.build("serviceusage", "v1", credentials=self.credentials)
+            service_api = discovery.build(
+                "serviceusage", "v1", credentials=self.credentials
+            )
             body = {"serviceIds": list(missing_apis)}
             service_api.services().batchEnable(parent=project.name, body=body).execute()
 
-    def create_service_default_identity(self, project_id: str, service: str, only_check: bool) -> None:
+    def create_service_default_identity(
+        self, project_id: str, service: str, only_check: bool
+    ) -> None:
         """creates a service account for a managed service"""
         if only_check:
             if service not in self.REQUIRED_APIS:
-                raise RuntimeError(f"Service {service} is not in the list of required APIs")
-            log.info(f"Default Service account identity for {service} will be created if not exists")
+                raise RuntimeError(
+                    f"Service {service} is not in the list of required APIs"
+                )
+            log.info(
+                f"Default Service account identity for {service} will be created if not exists"
+            )
             return
-        service_api = discovery.build("serviceusage", "v1beta1", credentials=self.credentials)
-        service_api.services().generateServiceIdentity(parent=f"projects/{project_id}/services/{service}").execute()
+        service_api = discovery.build(
+            "serviceusage", "v1beta1", credentials=self.credentials
+        )
+        service_api.services().generateServiceIdentity(
+            parent=f"projects/{project_id}/services/{service}"
+        ).execute()
 
     def exists(self, project_id: str, parent_name: str) -> bool:
         """Check if the organization exists"""
         return self._exists(
-            resourcemanager_v3.Project(parent=parent_name, project_id=project_id, display_name=project_id)
+            resourcemanager_v3.Project(
+                parent=parent_name, project_id=project_id, display_name=project_id
+            )
         )
 
     def apply(self, project_id: str, parent_name: str, only_check: bool) -> None:
         """Creates the GCP project resource if does not already exists"""
         self._apply(
-            resourcemanager_v3.Project(parent=parent_name, project_id=project_id, display_name=project_id), only_check
+            resourcemanager_v3.Project(
+                parent=parent_name, project_id=project_id, display_name=project_id
+            ),
+            only_check,
         )
         if project := self._get(project_id):
             self.apply_billing(project, only_check)
             self.enable_missing_apis(project, only_check)
 
     def appy_project_iam_binding_role_to_service_account(
-        self, role_name: str, service_account_name: str, project_id: str, check_only: bool
+        self,
+        role_name: str,
+        service_account_name: str,
+        project_id: str,
+        check_only: bool,
     ) -> None:
         """update project.iamPolicy -> add binding project.role to project.sa"""
         project_role_name = IAMClient.get_project_role_name(role_name, project_id)
         required_member = f"serviceAccount:{IAMClient.get_service_account_email(service_account_name, project_id)}"
-        self._appy_project_iam_binding_role_to_member(project_role_name, required_member, project_id, check_only)
+        self._appy_project_iam_binding_role_to_member(
+            project_role_name, required_member, project_id, check_only
+        )
 
     def appy_project_predefined_role_to_service_account_email(
-        self, role_name: str, service_account_email: str, project_id: str, check_only: bool
+        self,
+        role_name: str,
+        service_account_email: str,
+        project_id: str,
+        check_only: bool,
     ) -> None:
         """update project.iamPolicy -> add binding project.role to project.sa"""
         project_role_name = IAMClient.get_predefined_role_name(role_name)
         required_member = f"serviceAccount:{service_account_email}"
-        self._appy_project_iam_binding_role_to_member(project_role_name, required_member, project_id, check_only)
+        self._appy_project_iam_binding_role_to_member(
+            project_role_name, required_member, project_id, check_only
+        )
 
     def appy_project_iam_binding_role_to_group(
         self, role_name: str, group_email: str, project_id: str, check_only: bool
     ) -> None:
         """update project.iamPolicy -> add binding project.role to group"""
         project_role_name = IAMClient.get_project_role_name(role_name, project_id)
-        self._appy_project_iam_binding_role_to_member(project_role_name, f"group:{group_email}", project_id, check_only)
+        self._appy_project_iam_binding_role_to_member(
+            project_role_name, f"group:{group_email}", project_id, check_only
+        )
 
     def appy_project_iam_binding_predefined_role_to_group(
         self, role_name: str, group_email: str, project_id: str, check_only: bool
     ) -> None:
         """update project.iamPolicy -> add binding role to group"""
         role_name = IAMClient.get_predefined_role_name(role_name)
-        self._appy_project_iam_binding_role_to_member(role_name, f"group:{group_email}", project_id, check_only)
+        self._appy_project_iam_binding_role_to_member(
+            role_name, f"group:{group_email}", project_id, check_only
+        )
 
     def _appy_project_iam_binding_role_to_member(
         self, role_name: str, required_member: str, project_id: str, check_only: bool
     ) -> None:
         """update project.iamPolicy -> add binding project.role to group"""
-        api = discovery.build("cloudresourcemanager", "v1", credentials=self.credentials)
-        IAMClient.appy_iam_policy_binding(api.projects(), role_name, required_member, project_id, check_only)
+        api = discovery.build(
+            "cloudresourcemanager", "v1", credentials=self.credentials
+        )
+        IAMClient.appy_iam_policy_binding(
+            api.projects(), role_name, required_member, project_id, check_only
+        )
 
     def appy_project_service_account_iam_binding_workload_identity(
         self, service_account_name: str, project_id: str, check_only: bool
@@ -380,11 +469,19 @@ class ProjectClient(ResourceManagerClient):
         #       --member "serviceAccount:PROJECT_ID.svc.id.goog[NAMESPACE/KSA_NAME]"
         role_name = "roles/iam.workloadIdentityUser"
         # serviceAccount:PROJECT_ID.svc.id.goog[KUBERNETES_NAMESPACE/KUBERNETES_SERVICE_ACCOUNT]
-        required_member = f"serviceAccount:{project_id}.svc.id.goog[default/{service_account_name}]"
-        resource = IAMClient.get_service_account_project_name(service_account_name, project_id)
+        required_member = (
+            f"serviceAccount:{project_id}.svc.id.goog[default/{service_account_name}]"
+        )
+        resource = IAMClient.get_service_account_project_name(
+            service_account_name, project_id
+        )
         api = discovery.build("iam", "v1", credentials=self.credentials)
         IAMClient.appy_iam_policy_binding(
-            api.projects().serviceAccounts(), role_name, required_member, resource, check_only
+            api.projects().serviceAccounts(),
+            role_name,
+            required_member,
+            resource,
+            check_only,
         )
 
 
@@ -399,7 +496,9 @@ class GKEClusterId:
     @property
     def request_name(self) -> str:
         """Gets the cluster name used in the api requests"""
-        return f"{self.project_name}/locations/{self.region}/clusters/{self.cluster_name}"
+        return (
+            f"{self.project_name}/locations/{self.region}/clusters/{self.cluster_name}"
+        )
 
     def __str__(self) -> str:
         return f"GKE Cluster('{self.cluster_name}' on '{self.project_name}' and region '{self.region}')"
@@ -414,7 +513,9 @@ class GKECluster:
     def __post_init__(self) -> None:
         self._cache: dict[GKEClusterId, container_v1.Cluster] = {}
 
-    def get(self, cluster_id: GKEClusterId, force_refresh: bool = False) -> container_v1.Cluster:
+    def get(
+        self, cluster_id: GKEClusterId, force_refresh: bool = False
+    ) -> container_v1.Cluster:
         """gets the GKE cluster instance or raises an exception"""
         if force_refresh or cluster_id not in self._cache:
             client = container_v1.ClusterManagerClient(credentials=self.credentials)
@@ -436,7 +537,9 @@ class GKECluster:
         wait=wait_fixed(5),
         after=after_log(log, logger.logging.WARNING),
     )
-    def apply(self, cluster_id: GKEClusterId, project_id: str, only_check: bool) -> None:
+    def apply(
+        self, cluster_id: GKEClusterId, project_id: str, only_check: bool
+    ) -> None:
         """Creates GKE cluster if doesn't exists"""
         try:
             self.get(cluster_id)
@@ -452,12 +555,17 @@ class GKECluster:
                 description=f"Cluster created by infra_client on project {cluster_id.project_name} and region {cluster_id.region}",
                 initial_node_count=1,
                 autopilot=container_v1.Autopilot(enabled=True),
-                node_config=container_v1.NodeConfig(machine_type=const.GKE_NODE_MACHINE_TYPE),
+                node_config=container_v1.NodeConfig(
+                    machine_type=const.GKE_NODE_MACHINE_TYPE
+                ),
                 # only on non autopilot clusters to enable workload identity
-                workload_identity_config=container_v1.WorkloadIdentityConfig(workload_pool=f"{project_id}.svc.id.goog"),
+                workload_identity_config=container_v1.WorkloadIdentityConfig(
+                    workload_pool=f"{project_id}.svc.id.goog"
+                ),
             )
             request = container_v1.CreateClusterRequest(
-                parent=f"{cluster_id.project_name}/locations/{cluster_id.region}", cluster=cluster
+                parent=f"{cluster_id.project_name}/locations/{cluster_id.region}",
+                cluster=cluster,
             )
             client = container_v1.ClusterManagerClient(credentials=self.credentials)
             _ = client.create_cluster(request=request)
@@ -483,7 +591,9 @@ class GKECluster:
                 )
                 raise TimeoutError(msg)
             elapsed = datetime.timedelta(seconds=time.time() - start)
-            log.warning(f"{elapsed}... Still waiting for {msg}: {gke_cluster.status.name} {gke_cluster.conditions}")
+            log.warning(
+                f"{elapsed}... Still waiting for {msg}: {gke_cluster.status.name} {gke_cluster.conditions}"
+            )
             time.sleep(5)
 
     def get_kube_config(self, cluster_id: GKEClusterId) -> dict:
@@ -543,7 +653,9 @@ def wait(
             log.info(f"{msg} successful: {status_str(status)}")
             break
         if time.time() > timeout:
-            log.error(msg := f"After {timeout_secs} secs, still waiting for {msg}: {status_str(status)}")
+            log.error(
+                msg := f"After {timeout_secs} secs, still waiting for {msg}: {status_str(status)}"
+            )
             raise TimeoutError(msg)
         elapsed = datetime.timedelta(seconds=time.time() - start)
         log.warning(f"{elapsed}... Still waiting for {msg}: {status_str(status)}")
@@ -558,7 +670,9 @@ class GCPClient:
     def __init__(self, credentials: Optional[dict] = None) -> None:
         if not credentials and SETTINGS.gce_sa_info:
             # remove the first two chars and the last char in the key
-            credentials = json.loads(base64.b64decode(SETTINGS.gce_sa_info).decode("utf-8"))
+            credentials = json.loads(
+                base64.b64decode(SETTINGS.gce_sa_info).decode("utf-8")
+            )
             self.credentials = service_account.Credentials.from_service_account_info(
                 credentials, scopes=["https://www.googleapis.com/auth/cloud-platform"]
             )
@@ -569,7 +683,9 @@ class GCPClient:
             try:
                 self.credentials, self._default_project_id = google.auth.default()
             except google.auth.exceptions.DefaultCredentialsError as ex:
-                raise ValueError("Not possible to determine Credentials (default or env vars: GCE_SA_INFO)") from ex
+                raise ValueError(
+                    "Not possible to determine Credentials (default or env vars: GCE_SA_INFO)"
+                ) from ex
 
         # apis clients
         self.api_organization = OrganizationClient(self.credentials)
@@ -592,7 +708,12 @@ class GCPClient:
             return False
 
     def apply_bucket(
-        self, name: str, project_id: str, delete_after_days: Optional[int], location: str, only_check: bool
+        self,
+        name: str,
+        project_id: str,
+        delete_after_days: Optional[int],
+        location: str,
+        only_check: bool,
     ) -> None:
         """Create the bucket if necessary"""
         storage_client = storage.Client(credentials=self.credentials)
@@ -600,12 +721,16 @@ class GCPClient:
         try:
             bucket = storage_client.get_bucket(name)
             if bucket.location != location:
-                log.error(f"Bucket {bucket} exists in a differnt location {bucket.location} than expected {location}")
+                log.error(
+                    f"Bucket {bucket} exists in a differnt location {bucket.location} than expected {location}"
+                )
         except exceptions.NotFound:
             log.warning(f"Bucket {name} doesn't exists")
             if not only_check:
                 log.warning(f"creating bucket {name} in location {location}")
-                bucket = storage_client.create_bucket(bucket_or_name=name, project=project_id, location=location)
+                bucket = storage_client.create_bucket(
+                    bucket_or_name=name, project=project_id, location=location
+                )
         if bucket:
             if delete_after_days is None and bucket.lifecycle_rules:
                 log.warning(f"Unexpected {bucket.lifecycle_rules=} in bucket {name}")
@@ -614,15 +739,20 @@ class GCPClient:
                     bucket.update()
             elif (
                 delete_after_days is not None
-                and storage.bucket.LifecycleRuleDelete(age=delete_after_days) not in bucket.lifecycle_rules
+                and storage.bucket.LifecycleRuleDelete(age=delete_after_days)
+                not in bucket.lifecycle_rules
             ):
-                log.warning(f"lifecycle delete rule({delete_after_days=}) will be added to bucket {name}")
+                log.warning(
+                    f"lifecycle delete rule({delete_after_days=}) will be added to bucket {name}"
+                )
                 if not only_check:
                     bucket.clear_lifecyle_rules()
                     bucket.add_lifecycle_delete_rule(age=delete_after_days)
                     bucket.update()
             if not bucket.iam_configuration.uniform_bucket_level_access_enabled:
-                log.warning(f"uniform level access will be enabled in the bucket {name}")
+                log.warning(
+                    f"uniform level access will be enabled in the bucket {name}"
+                )
                 if not only_check:
                     bucket.iam_configuration.uniform_bucket_level_access_enabled = True
                     bucket.patch()

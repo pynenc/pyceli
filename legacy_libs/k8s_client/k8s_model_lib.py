@@ -9,7 +9,13 @@ from typing import Any, Callable, Dict, List, Optional, ClassVar, Iterator, Prot
 
 from kubernetes.utils.quantity import parse_quantity
 from kubernetes.client.exceptions import ApiException
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed, after_log
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_fixed,
+    after_log,
+)
 from urllib3.exceptions import HTTPError
 
 from k8s_client import k8s_client
@@ -72,13 +78,23 @@ class K8sModel(ABC):
         """check that is running in a k8s instance with enough permissions"""
         resource = f"{self.__class__.__name__.lower()}s"
         for verb in list(k8s_client.APIRequestVerb):
-            if k8s.check_authorization(self.API, resource, verb.value, DEFAULT_NAMESPACE):
-                log.info("current client authorized on resource %s verb %s", resource, verb)
+            if k8s.check_authorization(
+                self.API, resource, verb.value, DEFAULT_NAMESPACE
+            ):
+                log.info(
+                    "current client authorized on resource %s verb %s", resource, verb
+                )
             else:
-                log.warning("current client NOT authorized on resource %s verb %s", resource, verb)
+                log.warning(
+                    "current client NOT authorized on resource %s verb %s",
+                    resource,
+                    verb,
+                )
 
     @classmethod
-    def get_auth_role(cls, verbs: Optional[List[k8s_client.APIRequestVerb]] = None) -> "Role":
+    def get_auth_role(
+        cls, verbs: Optional[List[k8s_client.APIRequestVerb]] = None
+    ) -> "Role":
         """gets the role necessaries to authorize a service account on this the K8s object"""
         resource = cls.__name__.lower()
         if verbs:
@@ -86,9 +102,13 @@ class K8sModel(ABC):
             if len(name) > 30:
                 name = resource + "-" + "".join(sorted(v.value[0] for v in verbs))
             return Role(name, cls.API, resource + "s", verbs)
-        return Role(resource + "-full", cls.API, resource + "s", list(k8s_client.APIRequestVerb))
+        return Role(
+            resource + "-full", cls.API, resource + "s", list(k8s_client.APIRequestVerb)
+        )
 
-    def api(self, k8s: k8s_client.Kubernetes) -> client.CoreV1Api | client.BatchV1Api | client.AppsV1Api:
+    def api(
+        self, k8s: k8s_client.Kubernetes
+    ) -> client.CoreV1Api | client.BatchV1Api | client.AppsV1Api:
         """api required by the kubernetes object"""
         return getattr(k8s, f"{self.API}_api")
 
@@ -102,7 +122,10 @@ class K8sModel(ABC):
         return getattr(self.api(k8s), f"read{self.namespaced}_{self.API_FUNC}")(*args)
 
     def patch(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> Any | ApplyResult:
         """patch the existing k8s object"""
         if self.NAMESPACED:
@@ -114,7 +137,10 @@ class K8sModel(ABC):
         )
 
     def create(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> Any | ApplyResult:
         """create the k8s object"""
 
@@ -134,21 +160,28 @@ class K8sModel(ABC):
             else:
                 args = (self.get(k8s),)
             try:
-                return getattr(self.api(k8s), f"create{self.namespaced}_{self.API_FUNC}")(
-                    *args, async_req=async_req, dry_run=dry_run.value
-                )
+                return getattr(
+                    self.api(k8s), f"create{self.namespaced}_{self.API_FUNC}"
+                )(*args, async_req=async_req, dry_run=dry_run.value)
             except ApiException as ex:
                 if (ex_body := json.loads(ex.body)).get("reason") != "AlreadyExists":
                     raise
                 if "object is being deleted" in ex_body.get("message"):
-                    raise RetryException(f"{_type} {self.name} is being deleted") from ex
-                log.exception("%s %s no created, already exists: %s", _type, self.name, ex_body)
+                    raise RetryException(
+                        f"{_type} {self.name} is being deleted"
+                    ) from ex
+                log.exception(
+                    "%s %s no created, already exists: %s", _type, self.name, ex_body
+                )
             return None
 
         return _create()
 
     def delete(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> Any | ApplyResult:
         """delete the k8s object"""
         log.info("deleting %s %s", _type := type(self).__name__, self.name)
@@ -167,7 +200,10 @@ class K8sModel(ABC):
         return None
 
     def apply(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> Any | ApplyResult:
         """deletes the object if already exists and then creates new version"""
         log.info("applying %s %s", _type := type(self).__name__, self.name)
@@ -219,7 +255,9 @@ class K8sModel(ABC):
                 return bool(_condition.status)
         return False
 
-    def _explore_object_pods(self, k8s: k8s_client.Kubernetes, event: dict) -> Iterator[client.V1Pod]:
+    def _explore_object_pods(
+        self, k8s: k8s_client.Kubernetes, event: dict
+    ) -> Iterator[client.V1Pod]:
         _object = event["object"]
         namespace, selector = None, None
         if hasattr(_object, "metadata"):
@@ -230,7 +268,9 @@ class K8sModel(ABC):
         if hasattr(_object, "kind"):
             selector = f"{_object.kind.lower()}-name"
         if namespace and selector:
-            for pod in k8s.core_api.list_namespaced_pod(namespace, label_selector=f"{selector}={name}").items:
+            for pod in k8s.core_api.list_namespaced_pod(
+                namespace, label_selector=f"{selector}={name}"
+            ).items:
                 yield pod
 
     @retry(
@@ -266,12 +306,16 @@ class K8sModel(ABC):
             _request_timeout=80,
         ):
             current_conditions.clear()
-            if condition and self._check_condition(current_conditions, condition, event):
+            if condition and self._check_condition(
+                current_conditions, condition, event
+            ):
                 k8s.watch.stop()
                 log.info("Done, condition satisfied for %s ", msg)
                 return
             if (
-                current_phase := getattr(status := event["object"].status, "phase", None)
+                current_phase := getattr(
+                    status := event["object"].status, "phase", None
+                )
             ) in _phases:  # pylint: disable=superfluous-parens
                 k8s.watch.stop()
                 log.info("Done, phase satisfied for %s ", msg)
@@ -279,13 +323,17 @@ class K8sModel(ABC):
             if getattr(status, "failed", 0):
                 k8s.watch.stop()
                 raise RuntimeError(f"{msg} Failed!")
-            if check_readiness and (container_statuses := getattr(status, "container_statuses", [])):
+            if check_readiness and (
+                container_statuses := getattr(status, "container_statuses", [])
+            ):
                 for container_status in container_statuses:
                     if container_status.ready:
                         k8s.watch.stop()
                         log.info("Done, %s passed its readiness probe", msg)
                         return
-            if check_replicas and isinstance(status, (client.V1ReplicaSetStatus, client.V1StatefulSetStatus)):
+            if check_replicas and isinstance(
+                status, (client.V1ReplicaSetStatus, client.V1StatefulSetStatus)
+            ):
                 if status.replicas == status.available_replicas:
                     k8s.watch.stop()
                     log.info("Done, %s has all replicas available", msg)
@@ -302,17 +350,26 @@ class K8sModel(ABC):
                 if not pod.status.container_statuses:
                     continue
                 for container_status in pod.status.container_statuses:
-                    if (waiting_status := container_status.state.waiting) and waiting_status.reason in [
+                    if (
+                        waiting_status := container_status.state.waiting
+                    ) and waiting_status.reason in [
                         "ErrImagePull",
                         "ImagePullBackOff",
                     ]:
                         k8s.watch.stop()
-                        raise K8SPullImageError(f"{msg} Failed! Not possible to retrieve pod image ({waiting_status})")
+                        raise K8SPullImageError(
+                            f"{msg} Failed! Not possible to retrieve pod image ({waiting_status})"
+                        )
             log.info(
-                "Still waiting for %s, last event: conditions[%s] phase[%s]", msg, current_conditions, current_phase
+                "Still waiting for %s, last event: conditions[%s] phase[%s]",
+                msg,
+                current_conditions,
+                current_phase,
             )
 
-        raise RuntimeError(f"{msg} is not available yet, {current_conditions=}, {current_phase=}")
+        raise RuntimeError(
+            f"{msg} is not available yet, {current_conditions=}, {current_phase=}"
+        )
 
 
 @dataclass  # type: ignore
@@ -327,11 +384,16 @@ class Volume(K8sModel):
 
     @staticmethod
     @abstractmethod
-    def get_volume_capacity(volume: client.V1PersistentVolume | client.V1PersistentVolumeClaim) -> str:
+    def get_volume_capacity(
+        volume: client.V1PersistentVolume | client.V1PersistentVolumeClaim,
+    ) -> str:
         """gets the capacity of the volume"""
 
     def apply(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> Any | ApplyResult:
         """Creates the volume or applies if previous volume had less storage"""
         log.info("applying %s %s", _type := type(self).__name__, self.name)
@@ -370,11 +432,17 @@ class PersistentVolume(Volume):
 
     def get(self, k8s: k8s_client.Kubernetes) -> client.V1PersistentVolume:
         del k8s
-        return k8s_client.Kubernetes.get_persistent_volume(self.name, self.storage, self.disk_name)
+        return k8s_client.Kubernetes.get_persistent_volume(
+            self.name, self.storage, self.disk_name
+        )
 
-    def get_current_volume(self, k8s: k8s_client.Kubernetes) -> Optional[client.V1PersistentVolume]:
+    def get_current_volume(
+        self, k8s: k8s_client.Kubernetes
+    ) -> Optional[client.V1PersistentVolume]:
         """gets the volume existing in the cluster if any"""
-        if items := k8s.core_api.list_persistent_volume(field_selector=f"metadata.name={self.name}").items:
+        if items := k8s.core_api.list_persistent_volume(
+            field_selector=f"metadata.name={self.name}"
+        ).items:
             return items[0]
         return None
 
@@ -387,7 +455,10 @@ class PersistentVolume(Volume):
         return k8s.core_api.read_persistent_volume(self.name)
 
     def patch(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> client.V1PersistentVolume | ApplyResult:
         """modifies existing volume"""
         return k8s.core_api.patch_persistent_volume(
@@ -395,13 +466,21 @@ class PersistentVolume(Volume):
         )
 
     def create(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> client.V1PersistentVolume | ApplyResult:
         """modifies existing volume"""
-        return k8s.core_api.create_persistent_volume(self.get(k8s), async_req=async_req, dry_run=dry_run.value)
+        return k8s.core_api.create_persistent_volume(
+            self.get(k8s), async_req=async_req, dry_run=dry_run.value
+        )
 
     def delete(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> Any | ApplyResult:
         del k8s, async_req, dry_run
         raise RuntimeError("Not automatized, deleting the PV will remove all the data")
@@ -434,7 +513,9 @@ class PersistentVolumeClaim(Volume):
 
     def get(self, k8s: k8s_client.Kubernetes) -> client.V1PersistentVolumeClaim:
         del k8s
-        return k8s_client.Kubernetes.get_persistent_volume_claim(self.name, self.storage)
+        return k8s_client.Kubernetes.get_persistent_volume_claim(
+            self.name, self.storage
+        )
 
     def get_current_volume(self, k8s: k8s_client.Kubernetes) -> Optional[Any]:
         """gets the list of existing volumes"""
@@ -450,7 +531,10 @@ class PersistentVolumeClaim(Volume):
         return volume.spec.resources.requests["storage"]
 
     def delete(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> Any | ApplyResult:
         raise RuntimeError("Not automatized, deleting the PVC will remove all the data")
         # return k8s.core_api.delete_namespaced_persistent_volume_claim(self.name, DEFAULT_NAMESPACE, async_req=async_req)
@@ -460,7 +544,11 @@ class PersistentVolumeClaim(Volume):
             k8s=k8s,
             func=k8s.core_api.list_namespaced_persistent_volume_claim,
             args=(DEFAULT_NAMESPACE,),
-            phases=[k8s_client.PhaseVolume.AVAILABLE, k8s_client.PhasePVC.PENDING, k8s_client.PhaseVolume.BOUND],
+            phases=[
+                k8s_client.PhaseVolume.AVAILABLE,
+                k8s_client.PhasePVC.PENDING,
+                k8s_client.PhaseVolume.BOUND,
+            ],
         )
 
 
@@ -471,10 +559,14 @@ class PersistentVolumeClaimTemplate:
     name: str
     storage: str
 
-    def get_template(self, k8s: k8s_client.Kubernetes) -> client.V1PersistentVolumeClaim:
+    def get_template(
+        self, k8s: k8s_client.Kubernetes
+    ) -> client.V1PersistentVolumeClaim:
         """get a volume claim template for stateful sets"""
         del k8s
-        return k8s_client.Kubernetes.get_persistent_volume_claim_template(self.name, self.storage)
+        return k8s_client.Kubernetes.get_persistent_volume_claim_template(
+            self.name, self.storage
+        )
 
 
 @dataclass
@@ -536,7 +628,9 @@ class ServicePort:
     def get(self, k8s: k8s_client.Kubernetes) -> client.V1ServicePort:
         """get the k8s object to apply"""
         del k8s
-        return k8s_client.client.V1ServicePort(port=self.port, target_port=self.target_port, name=self.name)
+        return k8s_client.client.V1ServicePort(
+            port=self.port, target_port=self.target_port, name=self.name
+        )
 
 
 @dataclass
@@ -575,10 +669,14 @@ class Service(K8sModel):
             details = []
             for subset in getattr(event["object"], "subsets", []) or []:
                 for address in subset.addresses or []:
-                    details.append(f"Endpoint({address.ip} --> {address.target_ref.kind} {address.target_ref.name})")
+                    details.append(
+                        f"Endpoint({address.ip} --> {address.target_ref.kind} {address.target_ref.name})"
+                    )
             if details:
                 k8s.watch.stop()
-                log.info("Done, found endpoints for service %s : %s", self.name, details)
+                log.info(
+                    "Done, found endpoints for service %s : %s", self.name, details
+                )
                 return
         raise RuntimeError(f"Service {self.name} is not available")
 
@@ -635,7 +733,9 @@ class Secret(K8sModel):
     def get(self, k8s: k8s_client.Kubernetes) -> client.V1Secret:
         """get the k8s object to apply"""
         del k8s
-        return k8s_client.Kubernetes.get_secret(self.name, self.secret_type, self.string_data, self.data)
+        return k8s_client.Kubernetes.get_secret(
+            self.name, self.secret_type, self.string_data, self.data
+        )
 
 
 class K8sRole(Protocol):
@@ -647,7 +747,10 @@ class K8sRole(Protocol):
     verbs: List[k8s_client.APIRequestVerb]
 
     def apply(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> Any | ApplyResult:
         """Apply the Role"""
 
@@ -666,7 +769,9 @@ class Role(K8sModel, K8sRole):
     def get(self, k8s: k8s_client.Kubernetes) -> client.V1Job:
         """gets the Job definition"""
         del k8s
-        return k8s_client.Kubernetes.get_role(self.name, self.api_group, self.resource, self.resource_names, self.verbs)
+        return k8s_client.Kubernetes.get_role(
+            self.name, self.api_group, self.resource, self.resource_names, self.verbs
+        )
 
 
 @dataclass
@@ -704,7 +809,11 @@ class RoleBinding(K8sModel):
         """gets the Job definition"""
         del k8s
         return k8s_client.Kubernetes.get_role_binding(
-            self.name, DEFAULT_NAMESPACE, self.service_account_name, self.users, self.role_name
+            self.name,
+            DEFAULT_NAMESPACE,
+            self.service_account_name,
+            self.users,
+            self.role_name,
         )
 
 
@@ -723,7 +832,11 @@ class ClusterRoleBinding(K8sModel):
         """gets the Job definition"""
         del k8s
         return k8s_client.Kubernetes.get_cluster_role_binding(
-            self.name, DEFAULT_NAMESPACE, self.service_account_name, self.users, self.role_name
+            self.name,
+            DEFAULT_NAMESPACE,
+            self.service_account_name,
+            self.users,
+            self.role_name,
         )
 
 
@@ -746,11 +859,18 @@ class ServiceAccount(K8sModel):
             if len(name := f"{self.name}-{role.name}") > 63:
                 raise ValueError(f"role binding name {name} is too long")
         if isinstance(role, ClusterRole):
-            return ClusterRoleBinding(name=name, service_account_name=self.name, role_name=role.name)
-        return RoleBinding(name=name, service_account_name=self.name, role_name=role.name)
+            return ClusterRoleBinding(
+                name=name, service_account_name=self.name, role_name=role.name
+            )
+        return RoleBinding(
+            name=name, service_account_name=self.name, role_name=role.name
+        )
 
     def apply(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> client.V1ServiceAccount | ApplyResult:
         service_account = super().apply(k8s, async_req, dry_run)
         for role in self.roles:
@@ -772,11 +892,18 @@ class WorkloadIdentity(ServiceAccount):
             raise ValueError("WorkloadIdentity roles are specified in pcaas_infra")
 
     def apply(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> client.V1ServiceAccount | ApplyResult:
         del async_req
         try:
-            log.info("%s, the service account %s MUST EXISTS already in the cluster", self.MSG, self.name)
+            log.info(
+                "%s, the service account %s MUST EXISTS already in the cluster",
+                self.MSG,
+                self.name,
+            )
             return self.read(k8s)
         except ApiException as ex:
             if json.loads(ex.body).get("reason") == "NotFound":
@@ -793,17 +920,26 @@ class WorkloadIdentity(ServiceAccount):
             raise
 
     def patch(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> Any | ApplyResult:
         raise RuntimeError(f"{self.MSG}, patch is forbidden")
 
     def create(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> Any | ApplyResult:
         raise RuntimeError(f"{self.MSG}, create is forbidden")
 
     def delete(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> Any | ApplyResult:
         raise RuntimeError(f"{self.MSG}, delete is forbidden")
 
@@ -816,7 +952,9 @@ class ValueFromField:
 
     def get(self) -> client.V1EnvFromSource:
         """gets the value"""
-        return client.V1EnvVarSource(field_ref=client.V1ObjectFieldSelector(field_path=self.field_path))
+        return client.V1EnvVarSource(
+            field_ref=client.V1ObjectFieldSelector(field_path=self.field_path)
+        )
 
 
 @dataclass
@@ -831,7 +969,9 @@ class ValueFromResourceField:
         """gets the value"""
         return client.V1EnvVarSource(
             resource_field_ref=client.V1ResourceFieldSelector(
-                container_name=self.container_name, divisor=self.divisor, resource=self.resource
+                container_name=self.container_name,
+                divisor=self.divisor,
+                resource=self.resource,
             )
         )
 
@@ -881,7 +1021,9 @@ class Container:
             if isinstance(volume, VolumeMountPVC):
                 yield k8s_client.Kubernetes.get_pod_volume_claim(name, volume.pvc.name)
             elif isinstance(volume, VolumeMountPVCTemplate):
-                yield k8s_client.Kubernetes.get_pod_volume_claim(volume.pvc_template.name, volume.pvc_template.name)
+                yield k8s_client.Kubernetes.get_pod_volume_claim(
+                    volume.pvc_template.name, volume.pvc_template.name
+                )
             elif isinstance(volume, VolumeMountConfigMap):
                 keys = list(volume.config_map.data.keys())
                 yield k8s_client.Kubernetes.get_pod_volume_from_configmap(
@@ -893,7 +1035,9 @@ class Container:
                 elif volume.secret.string_data:
                     keys = list(volume.secret.string_data.keys())
                 else:
-                    raise ValueError(f"Secret {volume.secret.name} has no data to mount")
+                    raise ValueError(
+                        f"Secret {volume.secret.name} has no data to mount"
+                    )
                 yield k8s_client.Kubernetes.get_pod_volume_from_secret(
                     name, volume.secret.name, keys, volume.default_mode
                 )
@@ -906,19 +1050,27 @@ class Container:
         """gets the volume mounts"""
         for name, volume in self._volumes():
             if isinstance(volume, VolumeMountPVC):
-                yield k8s_client.Kubernetes.get_container_volume_mount(name, volume.mount_path, volume.sub_path)
+                yield k8s_client.Kubernetes.get_container_volume_mount(
+                    name, volume.mount_path, volume.sub_path
+                )
             elif isinstance(volume, VolumeMountPVCTemplate):
                 yield k8s_client.Kubernetes.get_container_volume_mount(
                     volume.pvc_template.name, volume.mount_path, volume.sub_path
                 )
-            elif isinstance(volume, (VolumeMountConfigMap, VolumeMountSecret, VolumeMountEmptyDir)):
-                yield k8s_client.Kubernetes.get_container_volume_mount(name, volume.mount_path, None)
+            elif isinstance(
+                volume, (VolumeMountConfigMap, VolumeMountSecret, VolumeMountEmptyDir)
+            ):
+                yield k8s_client.Kubernetes.get_container_volume_mount(
+                    name, volume.mount_path, None
+                )
             else:
                 raise ValueError(f"Not supported volume instace {volume}")
 
     def get_container_spec(self, k8s: k8s_client.Kubernetes) -> client.V1Container:
         """gets the Pod template spec definition"""
-        env = k8s.get_env_from_source([DEFAULT_CONFIGMAP_NAME, DEFAULT_SECRET_NAME] + self.extra_env_sources)
+        env = k8s.get_env_from_source(
+            [DEFAULT_CONFIGMAP_NAME, DEFAULT_SECRET_NAME] + self.extra_env_sources
+        )
         if self.env:
             _env = self.env.copy()
             for key, value in self.env.items():
@@ -965,16 +1117,22 @@ class Pod(K8sModel):
     def __post_init__(self) -> None:
         if isinstance(self, Job):
             if not isinstance(self.restart_policy, k8s_client.JobRestartPolicy):
-                raise ValueError("Use specific deployment restart policy class JobRestartPolicy")
+                raise ValueError(
+                    "Use specific deployment restart policy class JobRestartPolicy"
+                )
         elif not isinstance(self.restart_policy, k8s_client.PodRestartPolicy):
-            raise ValueError("Use specific deployment restart policy class PodRestartPolicy")
+            raise ValueError(
+                "Use specific deployment restart policy class PodRestartPolicy"
+            )
 
     @property
     def container_map(self) -> Dict[str, Container]:
         """returns a dict of containers by name"""
         return {container.name: container for container in self.containers}
 
-    def get_pod_spec(self, k8s: k8s_client.Kubernetes) -> client.V1PodTemplateSpec:  # pylint: disable=too-many-branches
+    def get_pod_spec(
+        self, k8s: k8s_client.Kubernetes
+    ) -> client.V1PodTemplateSpec:  # pylint: disable=too-many-branches
         """gets the Pod template spec definition"""
         containers = []
         init_containers = []
@@ -984,7 +1142,9 @@ class Pod(K8sModel):
         if self.service_account:
             env = k8s.get_env_pair("POD_SERVICE_ACCOUNT", self.service_account.name)
 
-        def get_container_spec_and_update_volumes(container: Container) -> client.V1Container:
+        def get_container_spec_and_update_volumes(
+            container: Container,
+        ) -> client.V1Container:
             container_spec = container.get_container_spec(k8s)
             if env:
                 if container_spec.env:
@@ -1010,7 +1170,9 @@ class Pod(K8sModel):
         if self.cloud_sql_proxy:
             containers.append(k8s_client.Kubernetes.get_sql_proxy_container_spec())
 
-        service_account_name = self.service_account.name if self.service_account else None
+        service_account_name = (
+            self.service_account.name if self.service_account else None
+        )
         self.labels["component"] = self.labels.get("component", self.name)
         return k8s_client.Kubernetes.get_pod_template_spec(
             pod_name=self.name,
@@ -1031,15 +1193,31 @@ class Pod(K8sModel):
         return ",".join(labels)
 
     def delete_all_pods(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> None:
         """delete all pods that match label_selector"""
-        log.info("deleting all pods matching %s", label_selector := self.get_label_selector(k8s))
-        for pod in k8s.core_api.list_namespaced_pod(DEFAULT_NAMESPACE, label_selector=label_selector).items:
-            log.info("deleting pod %s from labled_Selector %s", name := pod.metadata.name, label_selector)
-            k8s.core_api.delete_namespaced_pod(name, DEFAULT_NAMESPACE, async_req=async_req, dry_run=dry_run.value)
+        log.info(
+            "deleting all pods matching %s",
+            label_selector := self.get_label_selector(k8s),
+        )
+        for pod in k8s.core_api.list_namespaced_pod(
+            DEFAULT_NAMESPACE, label_selector=label_selector
+        ).items:
+            log.info(
+                "deleting pod %s from labled_Selector %s",
+                name := pod.metadata.name,
+                label_selector,
+            )
+            k8s.core_api.delete_namespaced_pod(
+                name, DEFAULT_NAMESPACE, async_req=async_req, dry_run=dry_run.value
+            )
 
-    def wait_pod_deletion(self, k8s: k8s_client.Kubernetes, dry_run: k8s_client.DryRun) -> None:
+    def wait_pod_deletion(
+        self, k8s: k8s_client.Kubernetes, dry_run: k8s_client.DryRun
+    ) -> None:
         """Wait for all the pods to be deleted"""
         log.info(
             "Waiting for the deletation of all the pods from %s %s, with labels %s",
@@ -1048,7 +1226,9 @@ class Pod(K8sModel):
             label_selector := self.get_label_selector(k8s),
         )
         timeout = time.time() + WAIT_TIMEOUT
-        while pods := k8s.core_api.list_namespaced_pod(DEFAULT_NAMESPACE, label_selector=label_selector).items:
+        while pods := k8s.core_api.list_namespaced_pod(
+            DEFAULT_NAMESPACE, label_selector=label_selector
+        ).items:
             if dry_run == k8s_client.DryRun.ON:
                 log.warning(
                     "Running apply with dry_run:ON, aborting wait for %s deletion "
@@ -1091,7 +1271,11 @@ class Job(Pod):
     def get(self, k8s: k8s_client.Kubernetes) -> client.V1Job:
         """gets the Job definition"""
         return k8s_client.Kubernetes.get_job(
-            self.name, self.get_pod_spec(k8s), self.labels, self.backoff_limit, self.cleanup_after_seconds
+            self.name,
+            self.get_pod_spec(k8s),
+            self.labels,
+            self.backoff_limit,
+            self.cleanup_after_seconds,
         )
 
     def wait(self, k8s: k8s_client.Kubernetes) -> None:
@@ -1109,14 +1293,18 @@ class Cronjob(Pod):
     schedule: k8s_client.CronTab
     API_FUNC: ClassVar[str] = "cron_job"
 
-    def api(self, k8s: k8s_client.Kubernetes) -> client.CoreV1Api | client.BatchV1Api | client.AppsV1Api:
+    def api(
+        self, k8s: k8s_client.Kubernetes
+    ) -> client.CoreV1Api | client.BatchV1Api | client.AppsV1Api:
         return k8s.batch_api
 
     def get(self, k8s: k8s_client.Kubernetes) -> client.V1CronJob:
         """gets the CronJob definition"""
         if not self.schedule:
             raise ValueError("Schedule must be specified")
-        return k8s_client.Kubernetes.get_cronjob(self.name, self.get_pod_spec(k8s), self.schedule)
+        return k8s_client.Kubernetes.get_cronjob(
+            self.name, self.get_pod_spec(k8s), self.schedule
+        )
 
 
 @dataclass
@@ -1155,14 +1343,20 @@ class VerticalPodAutoscaler:
     def __post_init__(self) -> None:
         # SO FAR WE ONLY WORK WITH GENERAL_PURPOSE COMPUTE CLASS
         if not self.min_allowed:
-            log.warning(f"min_allowed not specified, using default values of {ComputeClasses.GENERAL_PURPOSE=}")
+            log.warning(
+                f"min_allowed not specified, using default values of {ComputeClasses.GENERAL_PURPOSE=}"
+            )
             self.min_allowed = PodResources(
-                cpu=ComputeClasses.GENERAL_PURPOSE.min_cpu, memory=ComputeClasses.GENERAL_PURPOSE.min_memory
+                cpu=ComputeClasses.GENERAL_PURPOSE.min_cpu,
+                memory=ComputeClasses.GENERAL_PURPOSE.min_memory,
             )
         if not self.max_allowed:
-            log.warning(f"max_allowed not specified, using default values of {ComputeClasses.GENERAL_PURPOSE=}")
+            log.warning(
+                f"max_allowed not specified, using default values of {ComputeClasses.GENERAL_PURPOSE=}"
+            )
             self.max_allowed = PodResources(
-                cpu=ComputeClasses.GENERAL_PURPOSE.max_cpu, memory=ComputeClasses.GENERAL_PURPOSE.max_memory
+                cpu=ComputeClasses.GENERAL_PURPOSE.max_cpu,
+                memory=ComputeClasses.GENERAL_PURPOSE.max_memory,
             )
 
     def get(self) -> dict:
@@ -1179,7 +1373,10 @@ class VerticalPodAutoscaler:
         )
 
     def apply(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> ApplyResult:
         """Applied the VPA"""
 
@@ -1191,12 +1388,25 @@ class VerticalPodAutoscaler:
         vpa["apiVersion"] = f"{group}/{version}"
         try:
             return k8s.custom_api.patch_namespaced_custom_object(
-                group, version, DEFAULT_NAMESPACE, plural, self.name, vpa, async_req=async_req, dry_run=dry_run.value
+                group,
+                version,
+                DEFAULT_NAMESPACE,
+                plural,
+                self.name,
+                vpa,
+                async_req=async_req,
+                dry_run=dry_run.value,
             )
         except ApiException as ex:
             if json.loads(ex.body).get("reason") == "NotFound":
                 return k8s.custom_api.create_namespaced_custom_object(
-                    group, version, DEFAULT_NAMESPACE, plural, vpa, async_req=async_req, dry_run=dry_run.value
+                    group,
+                    version,
+                    DEFAULT_NAMESPACE,
+                    plural,
+                    vpa,
+                    async_req=async_req,
+                    dry_run=dry_run.value,
                 )
             raise
 
@@ -1215,7 +1425,14 @@ class VPA:
     def get_vpa(self, name: str, target_kind: str) -> VerticalPodAutoscaler:
         """Creates the K8s VPA spec for the deployment"""
         return VerticalPodAutoscaler(
-            name, target_kind, name, None, self.min_allowed, self.max_allowed, self.control_cpu, self.control_memory
+            name,
+            target_kind,
+            name,
+            None,
+            self.min_allowed,
+            self.max_allowed,
+            self.control_cpu,
+            self.control_memory,
         )
 
 
@@ -1241,7 +1458,10 @@ class ReplicaManager(Pod, ABC):
             raise ValueError("KIND must be specified")
 
     def delete(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> Any | ApplyResult:
         result = super().delete(k8s, async_req, dry_run)
         self.wait_pod_deletion(k8s, dry_run)
@@ -1253,13 +1473,18 @@ class ReplicaManager(Pod, ABC):
     def ports(self) -> List[ServicePort]:
         """gets the ports used by the containers"""
         return [
-            ServicePort(p.name, p.port, p.target_port or p.port) for c in self.containers if c.ports for p in c.ports
+            ServicePort(p.name, p.port, p.target_port or p.port)
+            for c in self.containers
+            if c.ports
+            for p in c.ports
         ]
 
     def get_service(self, k8s: k8s_client.Kubernetes) -> Service:
         """Gets the service related to this Deployment"""
         if not self.ports:
-            raise AttributeError("To create a service is necessary to specify ports in at least one container")
+            raise AttributeError(
+                "To create a service is necessary to specify ports in at least one container"
+            )
         return Service(self.name, self.ports, self.get_pod_spec(k8s).metadata.labels)
 
     # TODO: patch will not refresh configmap, check if workaround
@@ -1286,7 +1511,10 @@ class ReplicaManager(Pod, ABC):
     #     return replica_manager
 
     def apply(
-        self, k8s: k8s_client.Kubernetes, async_req: bool = False, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+        self,
+        k8s: k8s_client.Kubernetes,
+        async_req: bool = False,
+        dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF,
     ) -> client.V1Deployment | ApplyResult:
         replica_manager = super().apply(k8s, async_req, dry_run)
         if self.create_service:
@@ -1312,7 +1540,9 @@ class ReplicaManager(Pod, ABC):
             label_selector=self.get_label_selector(k8s),
         )
         if self.create_service:
-            log.info(f"Waiting for service associated to the {self.__class__.__name__} {self.name}")
+            log.info(
+                f"Waiting for service associated to the {self.__class__.__name__} {self.name}"
+            )
             self.get_service(k8s).wait(k8s)
         log.info(f"Waiting for {self.__class__.__name__} {self.name} Available")
         self.wait_for_replica_manager(k8s)
@@ -1331,7 +1561,9 @@ class Deployment(ReplicaManager):
 
     def get(self, k8s: k8s_client.Kubernetes) -> client.V1Deployment:
         """gets the Job definition"""
-        return k8s_client.Kubernetes.get_deployment(self.name, self.get_pod_spec(k8s), self.replicas)
+        return k8s_client.Kubernetes.get_deployment(
+            self.name, self.get_pod_spec(k8s), self.replicas
+        )
 
     @staticmethod
     def get_list_method(k8s: k8s_client.Kubernetes) -> Callable:
@@ -1363,7 +1595,9 @@ class StatefulSet(ReplicaManager):
             for volume in container.volumes or []:
                 if isinstance(volume, VolumeMountPVCTemplate):
                     pvc_templates.append(volume.pvc_template.get_template(k8s))
-        return k8s_client.Kubernetes.get_statefulset(self.name, self.get_pod_spec(k8s), self.replicas, pvc_templates)
+        return k8s_client.Kubernetes.get_statefulset(
+            self.name, self.get_pod_spec(k8s), self.replicas, pvc_templates
+        )
 
     @staticmethod
     def get_list_method(k8s: k8s_client.Kubernetes) -> Callable:

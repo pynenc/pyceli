@@ -17,7 +17,9 @@ from src.errors import K8sDeploymentError
 log = logger.get_logger(__name__)
 
 
-def delete(name: str, _type: str, delete_func: Callable, dry_run: k8s_client.DryRun) -> None:
+def delete(
+    name: str, _type: str, delete_func: Callable, dry_run: k8s_client.DryRun
+) -> None:
     """delete and ignore NotFound errors"""
     try:
         log.warning("Deleting %s %s because is not specify in the model", _type, name)
@@ -28,26 +30,41 @@ def delete(name: str, _type: str, delete_func: Callable, dry_run: k8s_client.Dry
         log.info("%s %s do not exists, nothing to delete", _type, name)
 
 
-def delete_out_of_model(k8s_model: K8sModel, k8s: k8s_client.Kubernetes, dry_run: k8s_client.DryRun) -> None:
+def delete_out_of_model(
+    k8s_model: K8sModel, k8s: k8s_client.Kubernetes, dry_run: k8s_client.DryRun
+) -> None:
     """delete any deployment, cronjob or job that is not specified in the model"""
     # Delete any cronjob not defined in the model
-    for cronjob in k8s.batch_api.list_namespaced_cron_job(const.DEFAULT_NAMESPACE).items:
+    for cronjob in k8s.batch_api.list_namespaced_cron_job(
+        const.DEFAULT_NAMESPACE
+    ).items:
         if (name := cronjob.metadata.name) not in k8s_model.all_pod_keys:
             delete(name, "Cronjob", k8s.batch_api.delete_namespaced_cron_job, dry_run)
     # delete any deployment not defined in the model
-    for deployment in k8s.apps_api.list_namespaced_deployment(const.DEFAULT_NAMESPACE).items:
+    for deployment in k8s.apps_api.list_namespaced_deployment(
+        const.DEFAULT_NAMESPACE
+    ).items:
         if (name := deployment.metadata.name) not in k8s_model.all_pod_keys:
             if "postgresql" in name:
                 log.warning(f"Skipping deletion of old postgres deployment {name}")
                 continue
             if name.startswith("pg"):
-                log.warning(f"Skipping deletion of old distributed postgres deployment {name}")
+                log.warning(
+                    f"Skipping deletion of old distributed postgres deployment {name}"
+                )
                 continue
-            delete(name, "Deployment", k8s.apps_api.delete_namespaced_deployment, dry_run)
+            delete(
+                name, "Deployment", k8s.apps_api.delete_namespaced_deployment, dry_run
+            )
             for service in k8s.core_api.list_namespaced_service(
                 const.DEFAULT_NAMESPACE, field_selector=f"metadata.name={name}"
             ).items:
-                delete(service.metadata.name, "Deployment-Service", k8s.core_api.delete_namespaced_service, dry_run)
+                delete(
+                    service.metadata.name,
+                    "Deployment-Service",
+                    k8s.core_api.delete_namespaced_service,
+                    dry_run,
+                )
 
     # delete any job not defined in the model
     def is_in_model_job_owner_ref(job: client.V1Job) -> bool:
@@ -68,9 +85,14 @@ def clean_up_pods(k8s: k8s_client.Kubernetes, dry_run: k8s_client.DryRun) -> Non
     """Clean up all the pods that are completed/error"""
     for job in k8s.batch_api.list_namespaced_job(const.DEFAULT_NAMESPACE).items:
         if job.metadata.labels.get("component") == const.TASKER_SCHEDULER_NAME:
-            delete(job.metadata.name, "Job", k8s.batch_api.delete_namespaced_job, dry_run)
+            delete(
+                job.metadata.name, "Job", k8s.batch_api.delete_namespaced_job, dry_run
+            )
     for pod in k8s.core_api.list_namespaced_pod(const.DEFAULT_NAMESPACE).items:
-        if (phase := pod.status.phase) in [k8s_client.PhasePod.FAILED.value, k8s_client.PhasePod.SUCCEEDED.value]:
+        if (phase := pod.status.phase) in [
+            k8s_client.PhasePod.FAILED.value,
+            k8s_client.PhasePod.SUCCEEDED.value,
+        ]:
             log.info("deleting %s Pod %s", phase, name := pod.metadata.name)
             delete(name, "Pod", k8s.core_api.delete_namespaced_pod, dry_run)
         elif pod.metadata.labels.get("component") == const.TASKER_SCHEDULER_NAME:
@@ -85,7 +107,9 @@ def canary_test(k8s: k8s_client.Kubernetes, dry_run: k8s_client.DryRun) -> None:
     try:
         K8sModel.canary_job(k8s, dry_run, canary_name)
     except Exception as ex:
-        raise K8sDeploymentError(f"Aborting GKE deployment, canary job:{canary_name} failed") from ex
+        raise K8sDeploymentError(
+            f"Aborting GKE deployment, canary job:{canary_name} failed"
+        ) from ex
     finally:
         for job in k8s.batch_api.list_namespaced_job(const.DEFAULT_NAMESPACE).items:
             if (name := job.metadata.name) == canary_name:
@@ -93,7 +117,9 @@ def canary_test(k8s: k8s_client.Kubernetes, dry_run: k8s_client.DryRun) -> None:
         for pod in k8s.core_api.list_namespaced_pod(
             const.DEFAULT_NAMESPACE, label_selector=f"job-name={canary_name}"
         ).items:
-            delete(pod.metadata.name, "Pod", k8s.core_api.delete_namespaced_pod, dry_run)
+            delete(
+                pod.metadata.name, "Pod", k8s.core_api.delete_namespaced_pod, dry_run
+            )
 
 
 def test_deploy(docker_image: str, kubeconfig: Optional[dict] = None) -> None:
@@ -109,7 +135,9 @@ def deploy_to_kuberentes(docker_image: str, kubeconfig: Optional[dict] = None) -
     deploy(k8s=k8s_client.Kubernetes(kubeconfig), dry_run=k8s_client.DryRun.OFF)
 
 
-def deploy(k8s: k8s_client.Kubernetes, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF) -> None:
+def deploy(
+    k8s: k8s_client.Kubernetes, dry_run: k8s_client.DryRun = k8s_client.DryRun.OFF
+) -> None:
     """deploys to the kubernetes cluster"""
     # disable cronjobs, so nothing unexpected run during deployment
     # parallel jobs are not killed (can still try to finish)
@@ -117,12 +145,19 @@ def deploy(k8s: k8s_client.Kubernetes, dry_run: k8s_client.DryRun = k8s_client.D
     # before deploying, check the status of the databases in the cluster
     # during deployment other processes may be stopped, and the dbs cpu/mem consumption decrease
     cluster_resources = k8s.get_cluster_resources(
-        const.DEFAULT_NAMESPACE, label_selector={"k8s_model_type": "database"}, get_pods=True
+        const.DEFAULT_NAMESPACE,
+        label_selector={"k8s_model_type": "database"},
+        get_pods=True,
     )
     canary_test(k8s, dry_run)
     k8s.disable_all_cronjobs(const.DEFAULT_NAMESPACE, dry_run=dry_run)
     # delete the scheduler cronjob, to avoid creating new pods
-    delete(const.TASKER_SCHEDULER_NAME, "Cronjob", k8s.batch_api.delete_namespaced_cron_job, dry_run)
+    delete(
+        const.TASKER_SCHEDULER_NAME,
+        "Cronjob",
+        k8s.batch_api.delete_namespaced_cron_job,
+        dry_run,
+    )
     try:
         delete_out_of_model(k8s_model, k8s, dry_run)
         clean_up_pods(k8s, dry_run)
@@ -147,7 +182,11 @@ def deploy(k8s: k8s_client.Kubernetes, dry_run: k8s_client.DryRun = k8s_client.D
                 log.info("waiting for async call to k8s api %s", result)
                 result = result.get(timeout=30)
             if hasattr(result, "kind") and hasattr(result, "metadata"):
-                log.info("K8s object %s %s created", result.kind, getattr(result.metadata, "name", "n/a"))
+                log.info(
+                    "K8s object %s %s created",
+                    result.kind,
+                    getattr(result.metadata, "name", "n/a"),
+                )
     finally:
         k8s.enable_all_cronjobs(const.DEFAULT_NAMESPACE, dry_run=dry_run)
     log.info("deployment completed")

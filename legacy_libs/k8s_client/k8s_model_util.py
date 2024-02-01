@@ -13,7 +13,9 @@ log = logger.get_logger(__name__)
 def get_docker_registry_secret_data() -> Dict[str, str]:
     """gets the data field for the docker secret from docker env vars"""
     if not SETTINGS.docker_auth:
-        raise ValueError("SETTINGS.docker_auth needs to be specified in order to deploy")
+        raise ValueError(
+            "SETTINGS.docker_auth needs to be specified in order to deploy"
+        )
     key_data_str = "_json_key:" + base64.b64decode(SETTINGS.docker_auth).decode()
     data = {
         "auths": {
@@ -22,10 +24,16 @@ def get_docker_registry_secret_data() -> Dict[str, str]:
             }
         }
     }
-    return {".dockerconfigjson": base64.b64encode(json.dumps(data, separators=(",", ":")).encode()).decode()}
+    return {
+        ".dockerconfigjson": base64.b64encode(
+            json.dumps(data, separators=(",", ":")).encode()
+        ).decode()
+    }
 
 
-def get_configmap_data_from_files(filepaths: list[str], mappings: Optional[dict[str, str]] = None) -> dict[str, str]:
+def get_configmap_data_from_files(
+    filepaths: list[str], mappings: Optional[dict[str, str]] = None
+) -> dict[str, str]:
     """loads the filepath into a string and returns a dict [filename:filecontents]"""
     # this could easily support an array of filepath
     data = {}
@@ -38,10 +46,16 @@ def get_configmap_data_from_files(filepaths: list[str], mappings: Optional[dict[
     return data
 
 
-def wait_for_items(k8s: k8s_client.Kubernetes, dry_run: k8s_client.DryRun, items: List[Any]) -> None:
+def wait_for_items(
+    k8s: k8s_client.Kubernetes, dry_run: k8s_client.DryRun, items: List[Any]
+) -> None:
     """wait for each of the items in the list"""
     for item in items:
         if dry_run == k8s_client.DryRun.ON:
-            log.warning("Running on dry_run: Not waiting for %s %s", type(item).__name__, item.name)
+            log.warning(
+                "Running on dry_run: Not waiting for %s %s",
+                type(item).__name__,
+                item.name,
+            )
             continue
         item.wait(k8s)
