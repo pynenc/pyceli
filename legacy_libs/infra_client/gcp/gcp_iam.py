@@ -5,7 +5,13 @@ from typing import Optional, Any
 from google.oauth2 import service_account
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed, after_log
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_fixed,
+    after_log,
+)
 
 import logger
 
@@ -36,7 +42,11 @@ class IAMClient:
 
     @staticmethod
     def appy_iam_policy_binding(
-        api_service: discovery.Resource, role_name: str, required_member: str, resource: str, check_only: bool
+        api_service: discovery.Resource,
+        role_name: str,
+        required_member: str,
+        resource: str,
+        check_only: bool,
     ) -> None:
         """ensure the binding exists in the iamPolicy"""
         # TODO TEST THIS!!!
@@ -93,7 +103,12 @@ class IAMClient:
     def get_role(self, role_name: str, project_id: str) -> dict:
         """gets the role dict if exists or returns an error"""
         # https://cloud.google.com/iam/docs/reference/rest/v1/projects.roles/get
-        return self.api.projects().roles().get(name=self.get_project_role_name(role_name, project_id)).execute()
+        return (
+            self.api.projects()
+            .roles()
+            .get(name=self.get_project_role_name(role_name, project_id))
+            .execute()
+        )
 
     def exists_custom_role(self, role_name: str, project_id: str) -> bool:
         """Creates a custom role if necessary"""
@@ -105,7 +120,9 @@ class IAMClient:
                 raise
         return False
 
-    def apply_custom_role(self, role_name: str, project_id: str, permissions: list[str], only_check: bool) -> None:
+    def apply_custom_role(
+        self, role_name: str, project_id: str, permissions: list[str], only_check: bool
+    ) -> None:
         """Creates a custom role if necessary"""
         try:
             role = self.get_role(role_name, project_id)
@@ -125,9 +142,13 @@ class IAMClient:
             if ex.status_code != 404:
                 raise
             if only_check:
-                log.warning(f"Role {role_name} will be created in project {project_id} with {permissions=}")
+                log.warning(
+                    f"Role {role_name} will be created in project {project_id} with {permissions=}"
+                )
                 return
-            log.warning(f"Creating role {role_name} in project {project_id} with {permissions=}")
+            log.warning(
+                f"Creating role {role_name} in project {project_id} with {permissions=}"
+            )
             role = {
                 # "name": "storageCreatorRole",
                 "title": role_name,
@@ -138,7 +159,9 @@ class IAMClient:
             }
             body = {"roleId": role_name, "role": role}
             # https://cloud.google.com/iam/docs/reference/rest/v1/projects.roles/create
-            self.api.projects().roles().create(parent=f"projects/{project_id}", body=body).execute()
+            self.api.projects().roles().create(
+                parent=f"projects/{project_id}", body=body
+            ).execute()
         # https://cloud.google.com/iam/docs/reference/rest/v1/projects.roles/patch
         role_changes: dict[str, Any] = {}
         if role and set(role.get("includedPermissions", [])) != set(permissions):
@@ -148,7 +171,9 @@ class IAMClient:
         if role_changes:
             msg = "will change" if only_check else "is changing"
             for key, value in role_changes.items():
-                log.warning(f"Role {role_name} {msg} {key} from {role.get(key)} to {value}")
+                log.warning(
+                    f"Role {role_name} {msg} {key} from {role.get(key)} to {value}"
+                )
             if not only_check:
                 role.update(role_changes)
                 self.api.projects().roles().patch(
@@ -161,13 +186,17 @@ class IAMClient:
         return f"{service_account_name}@{project_id}.iam.gserviceaccount.com"
 
     @staticmethod
-    def get_service_account_project_name(service_account_name: str, project_id: str) -> str:
+    def get_service_account_project_name(
+        service_account_name: str, project_id: str
+    ) -> str:
         """gets the complete project/sa name used in IAM"""
         return f"projects/{project_id}/serviceAccounts/{IAMClient.get_service_account_email(service_account_name, project_id)}"
 
     def get_service_account(self, service_account_name: str, project_id: str) -> dict:
         """gets a project service account"""
-        name = IAMClient.get_service_account_project_name(service_account_name, project_id)
+        name = IAMClient.get_service_account_project_name(
+            service_account_name, project_id
+        )
         # https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts/get
         return self.api.projects().serviceAccounts().get(name=name).execute()
 
@@ -179,31 +208,48 @@ class IAMClient:
         wait=wait_fixed(15),
         after=after_log(log, logger.logging.WARNING),
     )
-    def apply_service_account(self, service_account_name: str, project_id: str, only_check: bool) -> None:
+    def apply_service_account(
+        self, service_account_name: str, project_id: str, only_check: bool
+    ) -> None:
         """create service account if does not exists"""
         try:
             self.get_service_account(service_account_name, project_id)
-            log.info(f"Nothing to do, service account {service_account_name} exists in project {project_id}")
+            log.info(
+                f"Nothing to do, service account {service_account_name} exists in project {project_id}"
+            )
         except HttpError as ex:
             if ex.status_code not in (404, 403):
                 raise
             if only_check:
-                log.warning(f"Service account {service_account_name} doesn't exists in project {project_id}")
+                log.warning(
+                    f"Service account {service_account_name} doesn't exists in project {project_id}"
+                )
                 if ex.status_code == 403:
                     log.warning(
                         "If warning persist while service account is present, validate infra_sa has iam.serviceAccounts.get"
                     )
                 return
-            log.warning(f"Creating Service account {service_account_name} in project {project_id}")
+            log.warning(
+                f"Creating Service account {service_account_name} in project {project_id}"
+            )
             # https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts#ServiceAccount
-            _service_account = {"description": "Service account created by infra_client"}
-            body = {"accountId": service_account_name, "serviceAccount": _service_account}
+            _service_account = {
+                "description": "Service account created by infra_client"
+            }
+            body = {
+                "accountId": service_account_name,
+                "serviceAccount": _service_account,
+            }
             # https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts/create
             try:
-                self.api.projects().serviceAccounts().create(name=f"projects/{project_id}", body=body).execute()
+                self.api.projects().serviceAccounts().create(
+                    name=f"projects/{project_id}", body=body
+                ).execute()
             except HttpError as exc:
                 if exc.status_code == 429:
-                    log.warning(f"Too many request received from Goggle API when trying to create sa: {body}")
+                    log.warning(
+                        f"Too many request received from Goggle API when trying to create sa: {body}"
+                    )
                     raise RetryException from exc
 
 

@@ -3,7 +3,13 @@ import time
 from typing import Any, Callable
 
 from googleapiclient.errors import HttpError
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential, after_log
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+    after_log,
+)
 
 from infra_client.gcp import constats as const
 import logger
@@ -28,7 +34,9 @@ def _get_status_retriable(get_status: Callable) -> Any:
         return get_status()
     except HttpError as exc:
         if exc.status_code == 429:
-            log.warning(f"Too many request received from Goggle API when getting status {get_status.__name__}")
+            log.warning(
+                f"Too many request received from Goggle API when getting status {get_status.__name__}"
+            )
             raise RetryException from exc
         raise exc
 
@@ -54,7 +62,9 @@ def wait(
             log.info(f"{msg} successful: {status_str(status)}")
             break
         if time.time() > timeout:
-            log.error(msg := f"After {timeout_secs} secs, still waiting for {msg}: {status_str(status)}")
+            log.error(
+                msg := f"After {timeout_secs} secs, still waiting for {msg}: {status_str(status)}"
+            )
             raise TimeoutError(msg)
         elapsed = datetime.timedelta(seconds=time.time() - start)
         log.warning(f"{elapsed}... Still waiting for {msg}: {status_str(status)}")

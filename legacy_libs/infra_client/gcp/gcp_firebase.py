@@ -32,14 +32,18 @@ class FirebaseClient:
     def api_firestore(self) -> Any:
         """lazy evaluatio of Directory API"""
         if not self._api_firestore:
-            self._api_firestore = discovery.build("firebase", "v1beta1", credentials=self.credentials)
+            self._api_firestore = discovery.build(
+                "firebase", "v1beta1", credentials=self.credentials
+            )
         return self._api_firestore
 
     @property
     def api_firebase(self) -> Any:
         """lazy evaluatio of Directory API"""
         if not self._api_firebase:
-            self._api_firebase = discovery.build("firestore", "v1", credentials=self.credentials)
+            self._api_firebase = discovery.build(
+                "firestore", "v1", credentials=self.credentials
+            )
         return self._api_firebase
 
     def apply(self, project_id: str, region: str, only_check: bool) -> None:
@@ -54,10 +58,14 @@ class FirebaseClient:
             if ex.status_code != 404:
                 raise
             if only_check:
-                log.warning(f"Project {project_id} has not a Firebase instance, will be created")
+                log.warning(
+                    f"Project {project_id} has not a Firebase instance, will be created"
+                )
                 return
         log.warning(f"Creating Firebase instance for {project_id=}...")
-        self.api_firestore.projects().addFirebase(project=f"projects/{project_id}", body=request_body).execute()
+        self.api_firestore.projects().addFirebase(
+            project=f"projects/{project_id}", body=request_body
+        ).execute()
         self.apply_database(project_id, region, only_check)
         log.warning(f"Firebase instance for {project_id=} created.")
 
@@ -69,23 +77,31 @@ class FirebaseClient:
         project_path = f"projects/{project_id}"
         default_db_name = "(default)"
         default_db_path = f"{project_path}/databases/{default_db_name}"
-        res = self.api_firebase.projects().databases().list(parent=project_path).execute()
+        res = (
+            self.api_firebase.projects().databases().list(parent=project_path).execute()
+        )
         for database in res["databases"]:
             if database["name"] == default_db_path:
                 if database["type"] == "FIRESTORE_NATIVE":
-                    log.info(f"Firestore database already exist in mode native in {project_id=}, nothing to do")
+                    log.info(
+                        f"Firestore database already exist in mode native in {project_id=}, nothing to do"
+                    )
                 elif only_check:
                     log.warning(
                         f"The mode of firestore {default_db_path} would be patches from {database['type']} to native"
                     )
                 else:
-                    log.warning(f"Updating firestore mode to native on {default_db_path}...")
+                    log.warning(
+                        f"Updating firestore mode to native on {default_db_path}..."
+                    )
                     update_mask = "type"
                     body = {"type": "FIRESTORE_NATIVE"}
                     self.api_firebase.projects().databases().patch(
                         name=default_db_path, updateMask=update_mask, body=body
                     ).execute()
-                    log.warning(f"Firestore mode UPDATED to native on {default_db_path}...")
+                    log.warning(
+                        f"Firestore mode UPDATED to native on {default_db_path}..."
+                    )
                 return
         log.warning(f"Creating firestore native instance on {default_db_path}...")
         body = {"type": "FIRESTORE_NATIVE", "locationId": region}

@@ -36,7 +36,9 @@ class DirectoryClient:
             scoped_credentials = self.credentials.with_scopes(
                 ["https://www.googleapis.com/auth/admin.directory.group.readonly"]
             )  # .with_subject("admin@viboo.io")
-            self._api = discovery.build("admin", "directory_v1", credentials=scoped_credentials)
+            self._api = discovery.build(
+                "admin", "directory_v1", credentials=scoped_credentials
+            )
         return self._api
 
     def get_group_members(self, group_email: str) -> list[str]:

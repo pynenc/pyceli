@@ -3,7 +3,7 @@ import click
 
 from util.cli_util import check_option_and_upsert_environ, get_name_style
 from settings.settings_model import SETTINGS, Settings
-from k8s_client import k8s_client, k8s_ops, k8s_resources, k8s_model_lib, constants
+from k8s_client import k8s_client, k8s_ops, k8s_resources, k8s_model_lib, constants  # type: ignore
 from infra_client.infra_model import INFRASTRUCTURE
 from infra_client.gcp.gcp_client import GCPClient
 from sql_client.db_users import DBUser
@@ -12,9 +12,21 @@ from sql_client.db_users import DBUser
 @click.group(chain=True)
 # @click.option("--docker_username", default=SETTINGS.docker_username, show_default=True, type=str)
 # @click.option("--docker_password", default=Password(SETTINGS.docker_password), show_default=True, type=Password)
-@click.option("--docker_image", default=SETTINGS.docker_image, show_default=True, type=str)
-@click.option("--backup-bucket_name", default=SETTINGS.backup_bucket_name, show_default=True, type=str)
-@click.option("--system-account-bucket_name", default=SETTINGS.system_account_bucket_name, show_default=True, type=str)
+@click.option(
+    "--docker_image", default=SETTINGS.docker_image, show_default=True, type=str
+)
+@click.option(
+    "--backup-bucket_name",
+    default=SETTINGS.backup_bucket_name,
+    show_default=True,
+    type=str,
+)
+@click.option(
+    "--system-account-bucket_name",
+    default=SETTINGS.system_account_bucket_name,
+    show_default=True,
+    type=str,
+)
 def cli(**kwargs: dict) -> None:
     """Define db_ops command line tool using click"""
     check_option_and_upsert_environ(SETTINGS, **kwargs)
@@ -57,7 +69,9 @@ def context() -> None:
 
 def get_current_context_service_accounts() -> list[str]:
     """Gets a list with all the current context service accounts"""
-    return list(k8s_client.Kubernetes().get_all_service_accounts(constants.DEFAULT_NAMESPACE))
+    return list(
+        k8s_client.Kubernetes().get_all_service_accounts(constants.DEFAULT_NAMESPACE)
+    )
 
 
 @cli.command()
@@ -78,7 +92,9 @@ def clusters() -> None:
 
 
 # common optinos
-option_force = click.option("-f", "--force", is_flag=True, default=False, show_default=True, type=bool)
+option_force = click.option(
+    "-f", "--force", is_flag=True, default=False, show_default=True, type=bool
+)
 option_dry_run = click.option(
     "-d",
     "--dry-run",
@@ -104,13 +120,20 @@ def deploy_env(env: str, force: bool, dry_run: bool) -> None:
     """Deploy to the kubernetes cluster"""
     gcp_client = GCPClient()
     infrastructure = INFRASTRUCTURE.get_infrastructure(env)
-    click.echo("Using backup bucket: " + get_name_style(infrastructure.backup_bucket.name))
-    click.echo("Using system account bucket: " + get_name_style(infrastructure.system_account_bucket.name))
+    click.echo(
+        "Using backup bucket: " + get_name_style(infrastructure.backup_bucket.name)
+    )
+    click.echo(
+        "Using system account bucket: "
+        + get_name_style(infrastructure.system_account_bucket.name)
+    )
     if not force and not dry_run:
         click.confirm("Confirm ?", abort=True)
     SETTINGS.backup_bucket_name = infrastructure.backup_bucket.name
     SETTINGS.system_account_bucket_name = infrastructure.system_account_bucket.name
-    SETTINGS.cloud_sql_connection_string = infrastructure.cloud_sql.instance_connection_string
+    SETTINGS.cloud_sql_connection_string = (
+        infrastructure.cloud_sql.instance_connection_string
+    )
     if not SETTINGS.docker_image:
         raise ValueError("docker_image should be specified by arg or .env")
     for cluster in infrastructure.k8s_clusters:
@@ -119,7 +142,9 @@ def deploy_env(env: str, force: bool, dry_run: bool) -> None:
             SETTINGS.cluster_region = cluster.region
             kubeconfig = cluster.get_kubeconfig(gcp_client, only_check=dry_run)
             if not force and not dry_run:
-                print_deploy_msg("ATTENTION: You're about to deploy!!!", SETTINGS.cluster_name)
+                print_deploy_msg(
+                    "ATTENTION: You're about to deploy!!!", SETTINGS.cluster_name
+                )
                 click.confirm("Are you sure?", abort=True)
                 click.echo("Deploying...")
             if dry_run:
@@ -161,7 +186,9 @@ def deploy(force: bool, dry_run: bool) -> None:
 
 
 @cli.command()
-@click.option("--docker_image", default=SETTINGS.docker_image, show_default=True, type=str)
+@click.option(
+    "--docker_image", default=SETTINGS.docker_image, show_default=True, type=str
+)
 @click.option("-k", "--kill", is_flag=True, default=False, show_default=True, type=bool)
 @click.option(
     "-sa",
@@ -173,11 +200,15 @@ def deploy(force: bool, dry_run: bool) -> None:
 @click.option("-eph", "--ephemeral_storage", default=None, type=str)
 @click.option("-mem", "--memory", default=None, type=str)
 @click.option("-cpu", default=None, type=str)
-@click.option("-p", "--sql_auth_proxy", is_flag=True, default=False, show_default=True, type=bool)
+@click.option(
+    "-p", "--sql_auth_proxy", is_flag=True, default=False, show_default=True, type=bool
+)
 @click.option(
     "--postgres_user",
     default=None,
-    type=click.Choice([user.value for user in DBUser.__members__.values()], case_sensitive=True),
+    type=click.Choice(
+        [user.value for user in DBUser.__members__.values()], case_sensitive=True
+    ),
     help="injects POSTGRES_USER in env var of the pod (determines the default user to connect to postgres)",
 )
 def debug_job(
@@ -199,9 +230,13 @@ def debug_job(
         _service_account = k8s_model_lib.ServiceAccount(name=service_account, roles=[])
     resources: Optional[k8s_resources.PodResources] = None
     if ephemeral_storage or memory or cpu:
-        resources = k8s_resources.PodResources(ephemeral_storage=ephemeral_storage, memory=memory, cpu=cpu)
+        resources = k8s_resources.PodResources(
+            ephemeral_storage=ephemeral_storage, memory=memory, cpu=cpu
+        )
     if sql_auth_proxy:
-        SETTINGS.cloud_sql_connection_string = get_current_context_cloud_sql_connection_string()
+        SETTINGS.cloud_sql_connection_string = (
+            get_current_context_cloud_sql_connection_string()
+        )
     env: Optional[dict] = {Settings.docker_image.setting_id: docker_image or SETTINGS.docker_image}  # type: ignore
     if postgres_user:
         env["POSTGRES_USERNAME"] = postgres_user  # type: ignore
