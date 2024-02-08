@@ -13,6 +13,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Distributed Computing",
 ]
@@ -23,7 +24,9 @@ pynenc = 'piceli.__main__:main'
 
 
 [tool.poetry.dependencies]
-python = ">=3.11.6"
+python = "^3.8"
+textual = "^0.49.0"
+kubernetes = "^29.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
