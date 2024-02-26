@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, overload, Union
+from typing import Optional, Union, overload
 
 from kubernetes import client
 from kubernetes.utils.quantity import parse_quantity
