@@ -9,7 +9,7 @@ def test_get_available_api_methods() -> None:
     api_methods = utils_api.get_available_api_methods(client.BatchV1Api, "job")
     assert api_methods == [
         "create_namespaced_job",
-        "delete_collection_namespaced_job",
+        # "delete_collection_namespaced_job",
         "delete_namespaced_job",
         "list_namespaced_job",
         "patch_namespaced_job",

@@ -1,6 +1,6 @@
 from kubernetes import client
 
-from piceli.k8s import templates
+from piceli.k8s import constants, templates
 from tests.unit.templates import yaml_utils
 
 
@@ -14,7 +14,7 @@ def test_cronjob() -> None:
             templates.Container(
                 name="test-cronjob",
                 image="docker-image",
-                image_pull_policy=templates.ImagePullPolicy.ALWAYS,
+                image_pull_policy=constants.ImagePullPolicy.ALWAYS,
                 command=["python", "--version"],
                 env={"K0": "V0"},
             )

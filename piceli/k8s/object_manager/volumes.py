@@ -51,6 +51,19 @@ class VolumeManager(base.ObjectManager):
         logger.info(f"creating {self.k8s_object}")
         return self.create(ctx, namespace, async_req, dry_run)
 
+    def replace(
+        self,
+        ctx: ClientContext,
+        namespace: str | None = None,
+        async_req: bool = False,
+        dry_run: DryRun = DryRun.OFF,
+    ) -> Any | ApplyResult:
+        del ctx, namespace, async_req, dry_run
+        raise RuntimeError(
+            "Not automatized, replacing the volume will remove all the data"
+        )
+        # TODO: this option should be configurable
+
     def delete(
         self,
         ctx: ClientContext,
@@ -59,7 +72,9 @@ class VolumeManager(base.ObjectManager):
         dry_run: DryRun = DryRun.OFF,
     ) -> Any | ApplyResult:
         del ctx, namespace, async_req, dry_run
-        raise RuntimeError("Not automatized, deleting the PV will remove all the data")
+        raise RuntimeError(
+            "Not automatized, deleting the volume will remove all the data"
+        )
         # TODO: this option should be configurable
 
     @property
@@ -68,10 +83,12 @@ class VolumeManager(base.ObjectManager):
         """Get the phases to wait for."""
 
     def wait(self, ctx: ClientContext, namespace: Optional[str] = None) -> None:
+        args = (self._resolve_namespace(namespace),) if self.namespaced else ()
         utils_wait.wait(
             ctx=ctx,
             list_func=self._api_method(ctx, "list"),
-            args=(),
+            args=args,
+            obj_name=self.k8s_object.name,
             phases=self.wait_phases,
         )
 

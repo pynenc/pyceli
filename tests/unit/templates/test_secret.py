@@ -1,6 +1,6 @@
 from kubernetes import client
 
-from piceli.k8s import templates
+from piceli.k8s import constants, templates
 from tests.unit.templates import yaml_utils
 
 
@@ -8,7 +8,7 @@ def test_secret_opaque() -> None:
     """test secret"""
     secret = templates.Secret(
         name="test-secret",
-        secret_type=templates.SecretType.OPAQUE,
+        secret_type=constants.SecretType.OPAQUE,
         string_data={"KEY0": "VALUE0"},
     )
     objects = secret.get()

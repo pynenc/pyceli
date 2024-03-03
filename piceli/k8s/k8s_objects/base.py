@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from functools import cached_property
 from typing import Optional
 
 from piceli.k8s.config import kubeconfig
@@ -52,6 +53,16 @@ class OriginCluster(ObjectOrigin):
     namespace: Optional[str]
 
 
+@dataclass(eq=True, frozen=True)
+class K8sObjectIdentifier:
+    name: str
+    kind: str
+    namespace: Optional[str] = None
+
+    def __hash__(self) -> int:
+        return hash((self.name, self.kind, self.namespace))
+
+
 @dataclass
 class K8sObject:
     """Represents a Kubernetes object"""
@@ -66,6 +77,10 @@ class K8sObject:
         )
         self.api_name = utils_object.get_api_name(self._group, self._version)
         self._namespace = self.spec["metadata"].get("namespace")
+
+    @cached_property
+    def identifier(self) -> K8sObjectIdentifier:
+        return K8sObjectIdentifier(self._name, self.kind, self.namespace)
 
     @property
     def name(self) -> str:

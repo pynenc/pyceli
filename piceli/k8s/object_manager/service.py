@@ -14,6 +14,7 @@ class ServiceManager(base.ObjectManager):
 
     def wait(self, ctx: ClientContext, namespace: Optional[str] = None) -> None:
         logger.info(f"Waiting for service {self.k8s_object}")
+        # todo retry for urllib3.exceptions.ProtocolError
         for event in ctx.watch.stream(
             ctx.core_api.list_namespaced_endpoints,
             self._resolve_namespace(namespace),

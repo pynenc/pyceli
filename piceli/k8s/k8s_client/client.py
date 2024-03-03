@@ -67,6 +67,7 @@ class ClientContext:
 
     def __init__(self, kubeconfig: Optional[KubeConfig] = None):
         self.kubeconfig = kubeconfig
+        self._api_cache: dict[str, Any] = {}
 
     @cached_property
     def api_client(self) -> client.ApiClient:
@@ -77,7 +78,9 @@ class ClientContext:
         return getattr(client, api_name)
 
     def get_api(self, api_name: str) -> Any:
-        return self.get_api_class(api_name)(self.api_client)
+        if api_name not in self._api_cache:
+            self._api_cache[api_name] = self.get_api_class(api_name)(self.api_client)
+        return self._api_cache[api_name]
 
     @cached_property
     def core_api(self) -> client.CoreV1Api:

@@ -16,7 +16,14 @@ def get_api_func_ending(kind: str) -> str:
 def get_available_api_methods(api: object, kind: str) -> list[str]:
     """Returns the available api methods for the object kind"""
     suffix = get_api_func_ending(kind)
-    return [func for func in dir(api) if func.endswith(suffix)]
+    operations = ["create", "delete", "list", "patch", "read", "replace"]
+    # not considered methods: "delete_collection", "watch", "watch_list"
+    potential_methods = []
+    for op in operations:
+        for namespaced in ["", "namespaced_"]:
+            method_name = f"{op}_{namespaced}{suffix}"
+            potential_methods.append(method_name)
+    return [func for func in dir(api) if func in potential_methods]
 
 
 def is_namespaced(methods: list[str]) -> bool:

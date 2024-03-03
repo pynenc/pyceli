@@ -45,3 +45,20 @@ class ApiOperationException(Exception):
     @property
     def is_being_deleted(self) -> bool:
         return "object is being deleted" in self.message
+
+    @property
+    def is_immutable_field_error(self) -> bool:
+        """Check if the error is due to an attempt to change immutable fields."""
+        return "Forbidden:" in self.message and "is immutable" in self.message
+
+    def immutable_fields(self) -> list[str]:
+        """Extract the fields involved in the immutable error."""
+        if not self.is_immutable_field_error:
+            return []
+        fields = []
+        # The field-related information is usually in the `causes` array within `details`
+        for cause in self.details.get("causes", []):
+            field_path = cause.get("field", "")
+            if field_path:
+                fields.append(field_path)
+        return fields

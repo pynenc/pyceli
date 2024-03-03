@@ -1,6 +1,7 @@
 from kubernetes import client
 
 from piceli.k8s import templates
+from piceli.k8s.constants import policies, secret_type
 from tests.unit.templates import yaml_utils
 
 DEPLOYMENT = templates.Deployment(
@@ -12,7 +13,7 @@ DEPLOYMENT = templates.Deployment(
         templates.Container(
             name="test-deployment",
             image="postgres-image",
-            image_pull_policy=templates.ImagePullPolicy.IF_NOT_PRESENT,
+            image_pull_policy=policies.ImagePullPolicy.IF_NOT_PRESENT,
             ports=[templates.Port(name="test-deployment", port=5432)],
             env={"PGDATA": "/var/lib/postgresql/data"},
             resources=templates.Resources(
@@ -39,7 +40,7 @@ DEPLOYMENT = templates.Deployment(
                     mount_path="/etc/postgresql/ssl",
                     secret=templates.Secret(
                         name="db-secret",
-                        secret_type=templates.SecretType.OPAQUE,
+                        secret_type=secret_type.SecretType.OPAQUE,
                         data={
                             "server.key": "cmFuZG9tX3N0cg==",
                             "server.crt": "cmFuZG9tX3N0cg==",

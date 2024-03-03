@@ -82,6 +82,10 @@ def process_event(
     obj_name: str,
 ) -> Optional[WaitResult]:
     """Process individual watch events."""
+
+    if "type" in event and event["type"] == "ADDED":
+        return WaitResult.EXISTS_OK
+
     status = event["object"].status
     if condition and check_condition(condition, status):
         return WaitResult.CONDITIONS_OK

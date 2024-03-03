@@ -5,6 +5,7 @@ from functools import cached_property
 from multiprocessing.pool import ApplyResult
 from typing import Any, Callable, Optional
 
+from kubernetes import client
 from kubernetes.client.exceptions import ApiException
 
 from piceli import settings
@@ -40,7 +41,7 @@ class ObjectManager:
         return utils_api.is_namespaced(self.api_methods)
 
     def _resolve_namespace(self, namespace: Optional[str]) -> str:
-        return namespace or self.k8s_object.namespace or Namespace.DEFAULT
+        return namespace or self.k8s_object.namespace or Namespace.DEFAULT.value
 
     def _prepare_args(
         self,
@@ -74,8 +75,9 @@ class ObjectManager:
         """reads the k8s object from the cluster, exception if not exists"""
         args = self._prepare_args(with_name=True, with_spec=False, namespace=namespace)
         spec = self._invoke_api(ctx, "read", *args)
+        spec_dict = client.ApiClient().sanitize_for_serialization(spec)
         return K8sObject(
-            spec, OriginCluster(ctx.kubeconfig, self._resolve_namespace(namespace))
+            spec_dict, OriginCluster(ctx.kubeconfig, self._resolve_namespace(namespace))
         )
 
     def patch(
@@ -84,9 +86,11 @@ class ObjectManager:
         namespace: Optional[str] = None,
         async_req: bool = False,
         dry_run: DryRun = DryRun.OFF,
+        patch_doc: Optional[dict] = None,
     ) -> Any | ApplyResult:
         """patch the existing k8s object"""
-        args = self._prepare_args(namespace)
+        args = self._prepare_args(namespace, with_name=True, with_spec=False)
+        args = args + ((patch_doc,) if patch_doc else (self.k8s_object.spec,))
         return self._invoke_api(
             ctx, "patch", *args, async_req=async_req, dry_run=dry_run.value
         )
@@ -129,7 +133,7 @@ class ObjectManager:
                 ctx, "delete", *args, async_req=async_req, dry_run=dry_run.value
             )
         except api_exceptions.ApiOperationException as ex:
-            if not ex.not_found:
+            if ex.not_found:
                 logger.info(f"{self.k8s_object} do not exists, nothing to delete")
                 return None
             raise
@@ -146,26 +150,37 @@ class ObjectManager:
         try:
             self.read(ctx, namespace)
             logger.info(f"{self.k8s_object} already exists, deleting and recreating")
-            # TODO check differences between the existing and the new object
-            self.delete(ctx, namespace, async_req, dry_run)
-            if dry_run == DryRun.ON:
-                logger.warning(
-                    "Running apply with dry_run:ON, aborting before creating"
-                    "because the previous delete on dry_run did nothing,"
-                    "so the create will fail with already exists"
-                )
-                return self.read(ctx, namespace)
-            timeout = time.time() + settings.K8S_DELETE_TIMEOUT
-            while True:
-                logger.debug(f"waiting for {self.k8s_object} to be deleted")
-                self.read(ctx, namespace)
-                if time.time() > timeout:
-                    break
-                time.sleep(1)
+            return self.replace(ctx, namespace, async_req, dry_run)
         except api_exceptions.ApiOperationException as ex:
             if not ex.not_found:
                 raise
             logger.info(f"{self.k8s_object} do not exists, creating")
+        return self.create(ctx, namespace, async_req, dry_run)
+
+    def replace(
+        self,
+        ctx: ClientContext,
+        namespace: Optional[str] = None,
+        async_req: bool = False,
+        dry_run: DryRun = DryRun.OFF,
+    ) -> Any | ApplyResult:
+        """deletes the object and  creates new version"""
+        logger.info(f"replacing {self.k8s_object} ")
+        self.delete(ctx, namespace, async_req, dry_run)
+        if dry_run == DryRun.ON:
+            logger.warning(
+                "Running apply with dry_run:ON, aborting before creating"
+                "because the previous delete on dry_run did nothing,"
+                "so the create will fail with already exists"
+            )
+            return self.read(ctx, namespace)
+        timeout = time.time() + settings.K8S_DELETE_TIMEOUT
+        while True:
+            logger.debug(f"waiting for {self.k8s_object} to be deleted")
+            self.read(ctx, namespace)
+            if time.time() > timeout:
+                break
+            time.sleep(1)
         return self.create(ctx, namespace, async_req, dry_run)
 
     def wait(self, ctx: ClientContext, namespace: Optional[str] = None) -> None:

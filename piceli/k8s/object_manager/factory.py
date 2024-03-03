@@ -15,3 +15,11 @@ class ManagerFactory:
             return service.ServiceManager(k8s_object)
         else:
             return ObjectManager(k8s_object)
+
+    # @staticmethod
+    # def get_all_managers(ctx, kinds: list[str], namespace: str) -> list[ObjectManager]:
+    #     # it will go trhough all the API
+    #     # it will go through all the API methods
+    #     # it will filter all the methods that start by list_namescaped + kind
+    #     # it will call the list and parse the results using get_manager
+    #     pass
