@@ -35,9 +35,9 @@ class ClientManager:
 
     def get_client(self, kubeconfig: Optional[KubeConfig] = None) -> client.ApiClient:
         # TODO REMOVE default to minikube when proper config is ready (pystell)
-        kubeconfig = _tmp_kubeconfig  # REMOVE THIS!!!
+        # kubeconfig = _tmp_kubeconfig  # REMOVE THIS!!!
         if kubeconfig not in self._clients:
-            # this it probably only work in GKE make this more generic
+            # this it probably only work in GCP make this more generic
             if kubeconfig:
                 logger.debug(f"connection to client using {kubeconfig=}")
                 credentials = json.loads(base64.b64decode(GCE_SA_INFO).decode("utf-8"))
@@ -109,6 +109,10 @@ class ClientContext:
     @cached_property
     def custom_api(self) -> client.CustomObjectsApi:
         return client.CustomObjectsApi(self.api_client)
+
+    @cached_property
+    def extensions_api(self) -> client.ApiextensionsV1Api:
+        return client.ApiextensionsV1Api(self.api_client)
 
     @cached_property
     def watch(self) -> watch.Watch:

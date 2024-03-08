@@ -1,4 +1,4 @@
-from piceli.k8s.k8s_objects import compare
+from piceli.k8s.ops.compare import object_comparer
 
 
 desired_spec = {
@@ -45,24 +45,28 @@ existing_spec = {
 
 
 def test_find_differences() -> None:
-    differences = compare.find_differences(desired_spec, existing_spec)
+    differences = object_comparer.find_differences(desired_spec, existing_spec)
     assert differences.considered == []
     assert set(differences.defaults) == {
-        compare.PathComparison(
-            path=("spec", "volumeMode"), existing="Filesystem", desired=None
+        object_comparer.PathComparison(
+            path=object_comparer.Path.from_string("spec,volumeMode"),
+            existing="Filesystem",
+            desired=None,
         ),
-        compare.PathComparison(
-            path=("spec", "storageClassName"), existing="standard-rwo", desired=None
+        object_comparer.PathComparison(
+            path=object_comparer.Path.from_string("spec,storageClassName"),
+            existing="standard-rwo",
+            desired=None,
         ),
     }
     assert set(differences.ignored) == {
-        compare.PathComparison(
-            path=("metadata", "finalizers"),
+        object_comparer.PathComparison(
+            path=object_comparer.Path.from_string("metadata,finalizers"),
             existing=["kubernetes.io/pvc-protection"],
             desired=None,
         ),
-        compare.PathComparison(
-            path=("metadata", "managedFields"),
+        object_comparer.PathComparison(
+            path=object_comparer.Path.from_string("metadata,managedFields"),
             existing=[
                 {
                     "apiVersion": "v1",
@@ -75,20 +79,24 @@ def test_find_differences() -> None:
             ],
             desired=None,
         ),
-        compare.PathComparison(
-            path=("metadata", "uid"),
+        object_comparer.PathComparison(
+            path=object_comparer.Path.from_string("metadata,uid"),
             existing="d8eba4cf-c0b5-476f-beef-c691dd87c80a",
             desired=None,
         ),
-        compare.PathComparison(
-            path=("metadata", "resourceVersion"), existing="255202869", desired=None
+        object_comparer.PathComparison(
+            path=object_comparer.Path.from_string("metadata,resourceVersion"),
+            existing="255202869",
+            desired=None,
         ),
-        compare.PathComparison(
-            path=("metadata", "creationTimestamp"),
+        object_comparer.PathComparison(
+            path=object_comparer.Path.from_string("metadata,creationTimestamp"),
             existing="2024-03-01T10:19:10+00:00",
             desired=None,
         ),
-        compare.PathComparison(
-            path=("status",), existing={"phase": "Pending"}, desired=None
+        object_comparer.PathComparison(
+            path=object_comparer.Path.from_string("status"),
+            existing={"phase": "Pending"},
+            desired=None,
         ),
     }

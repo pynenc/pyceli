@@ -124,7 +124,7 @@ filterwarnings = [
     "ignore:Running in a secondary thread. Signal handling will be skipped.:UserWarning",
     "ignore::pytest.PytestUnhandledThreadExceptionWarning",
 ]
-timeout = 15
+timeout = 30 # delete namespace on minikube integration tests can take a while
 
 [tool.coverage.run]
 omit = [

@@ -1,8 +1,10 @@
+from enum import StrEnum, auto
+
 import asyncio
 import logging
 
 from piceli.k8s.k8s_client.client import ClientContext
-from piceli.k8s.k8s_objects import compare
+from piceli.k8s.ops.compare import object_comparer
 from piceli.k8s.ops.deploy import deployment_graph
 from piceli.k8s.exceptions import api_exceptions
 from piceli.k8s.object_manager.factory import ManagerFactory
@@ -15,11 +17,29 @@ class NoActionNeeded(Exception):
     pass
 
 
+class ExecutionStatus(StrEnum):
+    PENDING = auto()
+    DONE = auto()
+    FAILED = auto()
+    ROLLED_BACK = auto()
+
+
 class DeploymentExecutor:
     def __init__(self, graph: deployment_graph.DeploymentGraph):
         self.graph = graph
         self.deployed_nodes: list[list[deployment_graph.ObjectNode]] = []
         self.waited_nodes: set = set()
+        self.status = ExecutionStatus.PENDING
+
+    @property
+    def is_done(self) -> bool:
+        return self.status == ExecutionStatus.DONE
+
+    async def wait_for_all(self, ctx: ClientContext, namespace: str | None) -> None:
+        for level_nodes in self.deployed_nodes:
+            await asyncio.gather(
+                *(self._wait_for_node(node, ctx, namespace) for node in level_nodes)
+            )
 
     async def deploy(self, ctx: ClientContext, namespace: str | None = None) -> None:
         try:
@@ -29,7 +49,10 @@ class DeploymentExecutor:
                     *(self.apply_node(node, ctx, namespace) for node in level_nodes)
                 )
                 self.deployed_nodes.append(level_nodes)
-        except Exception:
+            self.status = ExecutionStatus.DONE
+        except Exception as ex:
+            logger.error(f"Deployment failed: {ex}")
+            self.status = ExecutionStatus.FAILED
             await self.rollback(ctx, namespace)
             raise
 
@@ -109,7 +132,7 @@ class DeploymentExecutor:
         try:
             existing_obj = object_manager.read(ctx, namespace)
             # compare with existing object and determine action
-            compare_result = compare.determine_update_action(
+            compare_result = object_comparer.determine_update_action(
                 object_manager.k8s_object, existing_obj
             )
             if compare_result.no_action_needed:
@@ -151,3 +174,4 @@ class DeploymentExecutor:
             await asyncio.gather(
                 *(self.rollback_node(node, ctx, namespace) for node in level_nodes)
             )
+        self.status = ExecutionStatus.ROLLED_BACK

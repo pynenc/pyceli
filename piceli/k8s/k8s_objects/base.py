@@ -78,9 +78,15 @@ class K8sObject:
         self.api_name = utils_object.get_api_name(self._group, self._version)
         self._namespace = self.spec["metadata"].get("namespace")
 
-    @cached_property
+    @property
     def identifier(self) -> K8sObjectIdentifier:
+        """Object identifier."""
         return K8sObjectIdentifier(self._name, self.kind, self.namespace)
+
+    @property
+    def unnamespaced_id(self) -> K8sObjectIdentifier:
+        """Object identifier without namespace."""
+        return K8sObjectIdentifier(self._name, self.kind, None)
 
     @property
     def name(self) -> str:

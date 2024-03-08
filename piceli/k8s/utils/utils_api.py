@@ -1,5 +1,6 @@
 # Tooling implemented based on the kubernetes library:
 # https://github.com/kubernetes-client/python/blob/master/kubernetes/utils/create_from_yaml.py
+from functools import lru_cache
 import re
 
 UPPER_FOLLOWED_BY_LOWER_RE = re.compile("(.)([A-Z][a-z]+)")
@@ -37,3 +38,13 @@ def build_api_method_name(method: str, namespaced: bool, kind: str) -> str:
         return f"{method}_namespaced_{suffix}"
     else:
         return f"{method}_{suffix}"
+
+
+@lru_cache(maxsize=32)
+def get_api_version(api_name: str) -> str:
+    """From the API name (eg. CoreV1Api) returns the version 'V1'"""
+    version_start = api_name.rfind("V")  # Finds the last 'V' in the string
+    version_end = api_name.find("Api")
+    if version_start != -1 and version_end != -1:
+        return api_name[version_start:version_end].lower()
+    return ""
