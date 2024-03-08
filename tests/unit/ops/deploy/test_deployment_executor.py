@@ -1,12 +1,12 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
-from piceli.k8s.k8s_objects.base import K8sObject
+import pytest
+
 from piceli.k8s.exceptions import api_exceptions
-from piceli.k8s.ops.deploy import deployment_graph
-from piceli.k8s.ops.deploy.deployment_executor import DeploymentExecutor
 from piceli.k8s.k8s_client.client import ClientContext
 from piceli.k8s.object_manager.base import ObjectManager
+from piceli.k8s.ops.deploy import deployment_graph
+from piceli.k8s.ops.deploy.deployment_executor import DeploymentExecutor
 
 
 @pytest.mark.asyncio

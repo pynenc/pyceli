@@ -1,7 +1,7 @@
 # Tooling implemented based on the kubernetes library:
 # https://github.com/kubernetes-client/python/blob/master/kubernetes/utils/create_from_yaml.py
-from functools import lru_cache
 import re
+from functools import lru_cache
 
 UPPER_FOLLOWED_BY_LOWER_RE = re.compile("(.)([A-Z][a-z]+)")
 LOWER_OR_NUM_FOLLOWED_BY_UPPER_RE = re.compile("([a-z0-9])([A-Z])")

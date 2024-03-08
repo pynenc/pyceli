@@ -1,18 +1,16 @@
 import time
 from typing import TYPE_CHECKING, Generator
 
+import pytest
 from kubernetes.client.exceptions import ApiException
 from kubernetes.utils.quantity import parse_quantity
-
-import pytest
 
 from piceli.k8s.exceptions import api_exceptions
 from piceli.k8s.k8s_client.client import ClientContext
 from piceli.k8s.k8s_objects.base import K8sObject, K8sObjectIdentifier
+from piceli.k8s.ops import fetcher
 from piceli.k8s.ops.compare import compare_op, path
 from piceli.k8s.ops.deploy import deploy_op
-from piceli.k8s.ops import fetcher
-
 
 if TYPE_CHECKING:
     from _pytest.fixtures import FixtureRequest

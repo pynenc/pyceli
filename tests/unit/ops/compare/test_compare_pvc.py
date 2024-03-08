@@ -1,6 +1,5 @@
 from piceli.k8s.ops.compare import object_comparer
 
-
 desired_spec = {
     "apiVersion": "v1",
     "kind": "PersistentVolumeClaim",

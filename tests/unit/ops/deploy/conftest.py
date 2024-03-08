@@ -1,12 +1,12 @@
 import os
-from unittest.mock import Mock
 from typing import cast
+from unittest.mock import Mock
 
 import pytest
 
 from piceli.k8s.k8s_objects.base import K8sObject
-from piceli.k8s.ops import loader
 from piceli.k8s.object_manager.base import ObjectManager
+from piceli.k8s.ops import loader
 from piceli.k8s.ops.deploy.deployment_graph import DeploymentGraph
 
 

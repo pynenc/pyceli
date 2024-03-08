@@ -1,5 +1,5 @@
-from unittest.mock import MagicMock, patch, call
 from typing import Generator, Optional
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from kubernetes import client

@@ -1,14 +1,12 @@
-from enum import StrEnum, auto
-
 import asyncio
 import logging
+from enum import StrEnum, auto
 
+from piceli.k8s.exceptions import api_exceptions
 from piceli.k8s.k8s_client.client import ClientContext
+from piceli.k8s.object_manager.factory import ManagerFactory
 from piceli.k8s.ops.compare import object_comparer
 from piceli.k8s.ops.deploy import deployment_graph
-from piceli.k8s.exceptions import api_exceptions
-from piceli.k8s.object_manager.factory import ManagerFactory
-
 
 logger = logging.getLogger(__name__)
 

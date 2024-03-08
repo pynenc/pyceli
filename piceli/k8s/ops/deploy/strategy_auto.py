@@ -1,13 +1,13 @@
 from collections import defaultdict
 
 from piceli.k8s.k8s_objects.base import K8sObject, K8sObjectIdentifier
+from piceli.k8s.object_manager.factory import ManagerFactory
 from piceli.k8s.ops.deploy.deployment_graph import (
     DeploymentGraph,
-    ObjectNode,
     DeploymentStatus,
+    ObjectNode,
 )
 from piceli.k8s.ops.deploy.strategy_base import DeploymentStrategy
-from piceli.k8s.object_manager.factory import ManagerFactory
 
 DEPLOYMENT_LEVELS = {
     0: ["Namespace"],

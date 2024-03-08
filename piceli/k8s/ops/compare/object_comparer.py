@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import NamedTuple, Any
+from typing import Any, NamedTuple
 
 from kubernetes.utils.quantity import parse_quantity
 

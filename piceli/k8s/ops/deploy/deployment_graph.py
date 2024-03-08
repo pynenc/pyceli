@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum, auto
 from typing import Iterable
 
-from piceli.k8s.k8s_objects.base import K8sObjectIdentifier, K8sObject
+from piceli.k8s.k8s_objects.base import K8sObject, K8sObjectIdentifier
 from piceli.k8s.object_manager.base import ObjectManager
 
 

@@ -2,7 +2,7 @@ import asyncio
 
 from piceli.k8s.k8s_client.client import ClientContext
 from piceli.k8s.k8s_objects.base import K8sObject
-from piceli.k8s.ops.deploy import strategy_auto, deployment_executor
+from piceli.k8s.ops.deploy import deployment_executor, strategy_auto
 
 
 def deploy(

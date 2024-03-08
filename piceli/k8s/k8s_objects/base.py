@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from enum import Enum
-from functools import cached_property
 from typing import Optional
 
 from piceli.k8s.config import kubeconfig

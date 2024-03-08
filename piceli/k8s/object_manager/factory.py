@@ -1,5 +1,4 @@
-from piceli.k8s.k8s_client.client import ClientContext
-from piceli.k8s.k8s_objects.base import K8sObject, OriginCluster
+from piceli.k8s.k8s_objects.base import K8sObject
 from piceli.k8s.object_manager import service, volumes
 from piceli.k8s.object_manager.base import ObjectManager
 
