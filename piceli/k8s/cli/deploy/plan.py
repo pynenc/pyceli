@@ -65,39 +65,3 @@ def plan(
 
     # Display the structured deployment plan
     console.print(deployment_plan_tree)
-
-
-# @app.command()
-# def update(
-#     namespace: str = typer.Argument(
-#         ..., help="The namespace where the resources are deployed."
-#     ),
-#     resource_files: list[str] = typer.Option(
-#         ...,
-#         "--resource-file",
-#         "-f",
-#         help="File paths of the Kubernetes resource definitions for updating.",
-#     ),
-# ) -> None:
-#     """Update existing Kubernetes resources in a specified namespace."""
-#     ctx = ClientContext()
-#     resources_update = []  # Similarly, load from provided files
-
-#     # Load update resources
-#     for file_path in resource_files:
-#         with open(file_path) as f:
-#             # Assuming the same hypothetical from_file function
-#             resource = K8sObject.from_file(f)
-#             resources_update.append(resource)
-
-#     # Perform update
-#     try:
-#         deploy_op.deploy(ctx, resources_update, namespace)
-#         typer.echo(f"Successfully updated resources in {namespace}")
-#     except ApiException as e:
-#         typer.echo(f"Failed to update resources in {namespace}: {str(e)}")
-#         raise typer.Exit(code=1) from e
-
-
-if __name__ == "__main__":
-    app()
