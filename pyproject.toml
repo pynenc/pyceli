@@ -24,12 +24,14 @@ piceli = 'piceli.__main__:main'
 
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = ">=3.11.6,<4.0"
 textual = "^0.49.0"
 kubernetes = "^29.0.0"
 tenacity = "^8.2.3"
 cron-validator = "^1.0.8"
 pydantic = "^2.6.1"
+typer = { extras = ["all"], version = "^0.9.0" }
+cistell = "^0.0.4"
 
 [tool.poetry.group.gcp]
 optional = false

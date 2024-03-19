@@ -15,7 +15,9 @@ from piceli.k8s.config.kubeconfig import KubeConfig
 from piceli.k8s.templates.auxiliary.resource_request import ClusterResources
 from piceli.settings import GCE_SA_INFO
 
-# from piceli.k8s.k8s_client.tmp import kubeconfig as _tmp_kubeconfig # TMP FOR MINIKUBE REMOVE!
+# from piceli.k8s.k8s_client.tmp import (
+#     kubeconfig as _tmp_kubeconfig,
+# )  # TMP FOR MINIKUBE REMOVE!
 
 logger = logging.getLogger(__name__)
 

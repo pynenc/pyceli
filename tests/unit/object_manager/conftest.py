@@ -7,7 +7,6 @@ from piceli.k8s.ops import loader
 @pytest.fixture
 def object_manager() -> ObjectManager:
     """Create a k8s object manager."""
-    k8s_objects = loader.load_resources_from_yaml(
-        ["tests/unit/object_manager/resources/cronjob.yml"]
-    )
-    return ObjectManager(k8s_objects[0])
+    filepath = ["tests/unit/object_manager/resources/cronjob.yml"]
+    k8s_objects = loader.load_resources_from_files(filepath)
+    return ObjectManager(next(k8s_objects))

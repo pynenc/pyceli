@@ -33,6 +33,14 @@ class DeploymentExecutor:
     def is_done(self) -> bool:
         return self.status == ExecutionStatus.DONE
 
+    @property
+    def is_rolled_back(self) -> bool:
+        return self.status == ExecutionStatus.ROLLED_BACK
+
+    @property
+    def is_final(self) -> bool:
+        return self.is_done or self.is_rolled_back
+
     async def wait_for_all(self, ctx: ClientContext, namespace: str | None) -> None:
         for level_nodes in self.deployed_nodes:
             await asyncio.gather(

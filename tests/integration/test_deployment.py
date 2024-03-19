@@ -164,6 +164,3 @@ def test_deployment_and_update(
             }
         }
     }
-
-
-# existing='bash:4.4', desired='ubuntu:latest')
