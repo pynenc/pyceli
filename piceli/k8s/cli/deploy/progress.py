@@ -1,6 +1,4 @@
-import difflib
 import json
-from typing import Any
 
 from rich import box
 from rich.console import Console
@@ -120,26 +118,6 @@ def print_graph_level_progress(
         print_level_end(console, progress.level_id, True)
 
 
-def generate_diffs(existing: Any, desired: Any) -> str:
-    if isinstance(existing, dict) and isinstance(desired, dict):
-        existing_str = json.dumps(existing, sort_keys=True, indent=2).splitlines(
-            keepends=True
-        )
-        desired_str = json.dumps(desired, sort_keys=True, indent=2).splitlines(
-            keepends=True
-        )
-    else:
-        # Fallback for non-dictionary types, convert to strings and split lines
-        existing_str = str(existing).splitlines(keepends=True)
-        desired_str = str(desired).splitlines(keepends=True)
-
-    # Generate unified diff
-    diff = difflib.unified_diff(
-        existing_str, desired_str, fromfile="Existing", tofile="Desired"
-    )
-    return "".join(diff)
-
-
 def print_node_compare(
     console: Console, compare_result: object_comparer.CompareResult
 ) -> None:
@@ -151,30 +129,24 @@ def print_node_compare(
                 style="green",
             )
         )
-    elif compare_result.needs_replacement:
+        return
+    if compare_result.needs_replacement:
         console.print(
             Text("Differences detected: Requires replacement.", style="bold red")
         )
-        # Show differences
-        for difference in compare_result.differences.considered:
-            diff_text = generate_diffs(
-                str(difference.existing), str(difference.desired)
-            )
-            if diff_text:  # Only print if there are differences
-                console.print(f"[bold]Path: {difference.path}[/]")
-                console.print(diff_text)
     elif compare_result.needs_patch:
         console.print(
             Text("Differences detected: Can be patched.", style="bold yellow")
         )
-        # Show differences
-        for difference in compare_result.differences.considered:
-            diff_text = generate_diffs(
-                str(difference.existing), str(difference.desired)
-            )
-            if diff_text:  # Only print if there are differences
-                console.print(f"[bold]Path: {difference.path}[/]")
-                console.print(diff_text)
+    table = Table(show_header=True, show_lines=True, header_style="bold magenta")
+    table.add_column("Path", style="dim", no_wrap=False)
+    table.add_column("Existing", style="red")
+    table.add_column("Desired", style="green")
+    for difference in compare_result.differences.considered:
+        existing_str = json.dumps(difference.existing, sort_keys=True, indent=2)
+        desired_str = json.dumps(difference.desired, sort_keys=True, indent=2)
+        table.add_row(str(difference.path), existing_str, desired_str)
+    console.print(table)
 
 
 def print_node_progress(
@@ -188,7 +160,7 @@ def print_node_progress(
 
     # Handle different NodeEvents
     if progress.event == deployment_progress.NodeEvent.START_APPLY:
-        console.print(f"{obj_info} - Starting application...")
+        console.print(f"{obj_info} - Applying object")
     elif progress.event == deployment_progress.NodeEvent.NEW_OBJ:
         console.print(f"{obj_info} - [bold green]New object, will be created.[/]")
     elif progress.event == deployment_progress.NodeEvent.ERROR:
