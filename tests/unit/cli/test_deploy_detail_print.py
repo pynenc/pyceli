@@ -1,3 +1,4 @@
+from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -7,7 +8,7 @@ from piceli.k8s.ops.compare import object_comparer
 
 
 @pytest.fixture
-def mock_console() -> MagicMock:
+def mock_console() -> Generator[MagicMock, None, None]:
     with patch("rich.console.Console") as mock:
         yield mock()
 
@@ -33,7 +34,7 @@ def test_print_new_objects(mock_console: MagicMock) -> None:
     mock_console.reset_mock()
 
     # Test with new objects
-    detail.print_new_objects(mock_console, new_objects)
+    detail.print_new_objects(mock_console, new_objects)  # type: ignore
     # Verify that print was called once, and check the argument type
     assert mock_console.print.call_count == 1
     args, kwargs = mock_console.print.call_args

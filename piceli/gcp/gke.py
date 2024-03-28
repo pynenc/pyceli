@@ -125,9 +125,8 @@ class GKECluster:
                 )
                 raise Exception(f"Error creating {msg}: {gke_cluster.conditions}")
             if time.time() > timeout:
-                logger.error(
-                    msg := f"After more than {WAIT_GKE_RUNNING_MINUTES} min, {msg} still:{gke_cluster.status.name}"
-                )
+                msg = f"After more than {WAIT_GKE_RUNNING_MINUTES} min, {msg} still:{gke_cluster.status.name}"
+                logger.error(msg)
                 raise TimeoutError(msg)
             elapsed = datetime.timedelta(seconds=time.time() - start)
             logger.warning(

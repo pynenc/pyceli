@@ -33,6 +33,9 @@ class ClientManager:
             # this it probably only work in GCP make this more generic when refactoring legacy libs
             if kubeconfig:
                 logger.debug(f"connection to client using {kubeconfig=}")
+                if not GCE_SA_INFO:
+                    # TODO: if still necessary after refactoring, use cistell
+                    raise ValueError("GCE_SA_INFO required for GKE kubeconfig")
                 credentials = json.loads(base64.b64decode(GCE_SA_INFO).decode("utf-8"))
                 with tempfile.TemporaryDirectory():
                     with open(

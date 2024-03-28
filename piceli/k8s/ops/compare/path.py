@@ -155,27 +155,28 @@ class Path:
 def wildcard_contains(seq1: list[PathElem], seq2: list[PathElem]) -> bool:
     @lru_cache(maxsize=None)
     def match_helper(index1: int, index2: int) -> bool:
-        # If we've reached the end of seq1, we've successfully matched it to a prefix of seq2
         if index1 == len(seq1):
             return True
-        # If we've reached the end of seq2 but not seq1, the match is unsuccessful
         if index2 == len(seq2):
             return False
-        # Wildcard in seq1 matches any subsequence of seq2 starting from current index
         if index1 < len(seq1) and isinstance(seq1[index1], Wildcard):
             return any(
                 match_helper(index1 + 1, j) for j in range(index2, len(seq2) + 1)
             )
-        # Wildcard in seq2 matches any subsequence of seq1 starting from current index
         if index2 < len(seq2) and isinstance(seq2[index2], Wildcard):
             return any(
                 match_helper(i, index2 + 1) for i in range(index1, len(seq1) + 1)
             )
-        # Direct match for the current elements, continue with the rest
         return seq1[index1] == seq2[index2] and match_helper(index1 + 1, index2 + 1)
 
-    # Attempt to match seq1 to every subsequence of seq2
-    # This allows seq1 to "be contained" within seq2 even if it's shorter
+    # Check if the first elements are wildcards or if they match directly without wildcards
+    # If not, then do not allow flexible start positions for matching
+    allow_flexible_start = isinstance(seq1[0], Wildcard) or isinstance(
+        seq2[0], Wildcard
+    )
+    if not allow_flexible_start:
+        return match_helper(0, 0)  # Start matching from the beginning of both sequences
+
     return any(match_helper(0, start) for start in range(len(seq2) + 1))
 
 
