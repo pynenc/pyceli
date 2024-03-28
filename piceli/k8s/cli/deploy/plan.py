@@ -42,7 +42,6 @@ def plan(
     deployment_plan_tree = Tree(
         "[bold green]Kubernetes Deployment Plan", guide_style="bold bright_blue"
     )
-    common.print_ctx_options(console, ctx_obj)
     if validate:
         try:
             console.print("[bold blue]Validating deployment graph...[/]")

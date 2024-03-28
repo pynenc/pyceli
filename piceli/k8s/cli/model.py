@@ -26,8 +26,8 @@ def list(ctx: typer.Context) -> None:
     # Setting up Rich console and table
     console = Console()
     common.print_command_name(console, "List Kubernetes Objects Model")
-    table = Table(show_header=True, header_style="bold magenta")
-    table.add_column("Name", style="dim", width=20)
+    table = Table(show_header=True, header_style="bold magenta", expand=True)
+    table.add_column("Name", style="dim")
     table.add_column("Kind", style="green")
     table.add_column("Namespace", style="yellow")
     table.add_column("Origin", style="cyan")

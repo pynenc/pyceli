@@ -2,7 +2,6 @@ from pathlib import Path
 
 from piceli.k8s.ops import loader
 
-
 TEST_DIR = Path(__file__).parent
 RESOURCE_DIR = TEST_DIR / "resources"
 

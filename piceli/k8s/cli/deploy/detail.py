@@ -1,5 +1,5 @@
 import json
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Annotated, NamedTuple
 
 import typer
 from rich.console import Console
@@ -9,9 +9,9 @@ from rich.table import Table
 from piceli.k8s.cli import common
 from piceli.k8s.exceptions import api_exceptions
 from piceli.k8s.k8s_client.client import ClientContext
+from piceli.k8s.object_manager.factory import ManagerFactory, ObjectManager
 from piceli.k8s.ops import loader
 from piceli.k8s.ops.compare import object_comparer
-from piceli.k8s.object_manager.factory import ManagerFactory, ObjectManager
 
 if TYPE_CHECKING:
     from piceli.k8s.cli.context import ContextObject
@@ -48,6 +48,9 @@ def print_summary_of_changes(
     console: Console, compare_results: list[ObjCompareResult]
 ) -> None:
     """Prints a summary table of changes required for each Kubernetes object."""
+    if not compare_results:
+        console.print("No changes required in any Kubernetes object.", style="yellow")
+        return
     # Create a summary table
     table = Table(
         title="Kubernetes Objects Deployment Summary",
@@ -60,20 +63,9 @@ def print_summary_of_changes(
 
     # Populate the table
     for obj_compare_result in compare_results:
-        desired_obj = (
-            obj_compare_result.desired_obj.k8s_object
-        )  # Assuming this gets the K8sObject
+        desired_obj = obj_compare_result.desired_obj.k8s_object
         result = obj_compare_result.compared_result
-
-        # Determine the update action as a string
-        action = "No action needed"
-        if result.update_action == object_comparer.UpdateAction.NEEDS_PATCH:
-            action = "Can be patched"
-        elif result.update_action == object_comparer.UpdateAction.NEEDS_REPLACEMENT:
-            action = "Requires replacement"
-
-        # Add row to the table
-        table.add_row(desired_obj.kind, desired_obj.name, action)
+        table.add_row(desired_obj.kind, desired_obj.name, result.action_description)
 
     # Print the summary table
     console.print(table)
@@ -97,23 +89,25 @@ def print_compared_specs(
     console.print(table)
 
 
-def print_diferences(console: Console, obj_compare_result: ObjCompareResult) -> None:
+def print_differences(console: Console, obj_compare_result: ObjCompareResult) -> None:
     """Prints a table detailing the differences for a Kubernetes object."""
-    # Extract the differences from the compare result
     differences = obj_compare_result.compared_result.differences
 
-    # Create a table for the differences
+    # Create a table for the differences with line separators between rows
     table = Table(
-        title="Differences Summary", show_header=True, header_style="bold magenta"
+        title="Differences Summary",
+        show_header=True,
+        header_style="bold magenta",
+        show_lines=True,
     )
     table.add_column("Path", style="cyan", no_wrap=True)
     table.add_column("Type", style="yellow")
     table.add_column("Existing", style="red")
     table.add_column("Desired", style="green")
 
-    # Helper function to add differences to the table
+    # Helper function to add differences to the table, with color coding for type
     def add_differences_to_table(
-        diff_type: str, differences: list[object_comparer.PathComparison]
+        diff_type: str, differences: list[object_comparer.PathComparison], color: str
     ) -> None:
         for diff in differences:
             # Convert complex structures to JSON strings for better readability
@@ -127,31 +121,53 @@ def print_diferences(console: Console, obj_compare_result: ObjCompareResult) -> 
                 if isinstance(diff.desired, (dict, list))
                 else str(diff.desired)
             )
-            table.add_row(str(diff.path), diff_type, existing, desired)
+            table.add_row(
+                str(diff.path), f"[{color}]{diff_type}[/{color}]", existing, desired
+            )
 
-    # Add each type of difference to the table
-    add_differences_to_table("Considered", differences.considered)
-    add_differences_to_table("Ignored", differences.ignored)
-    add_differences_to_table("Defaults", differences.defaults)
+    # Add each type of difference to the table, with specific colors
+    add_differences_to_table("Considered", differences.considered, "green")
+    add_differences_to_table("Ignored", differences.ignored, "yellow")
+    add_differences_to_table("Defaults", differences.defaults, "blue")
 
     # Print the table
     console.print(table)
 
 
 def print_compare_results(
-    console: Console, obj_compare_results: list[ObjCompareResult]
+    console: Console,
+    obj_compare_results: list[ObjCompareResult],
+    hide_no_action_detail: bool,
 ) -> None:
     """Prints detailed comparison results for each Kubernetes object."""
     print_summary_of_changes(console, obj_compare_results)
     for obj_compare_result in obj_compare_results:
+        compare_result = obj_compare_result.compared_result
+        if hide_no_action_detail and compare_result.no_action_needed:
+            continue
         k8s_object = obj_compare_result.desired_obj.k8s_object
-        title = f"{k8s_object.kind} {k8s_object.name}"
+        title = (
+            f"{k8s_object.kind} {k8s_object.name} - {compare_result.action_description}"
+        )
         console.print(Rule(f"[bold cyan] {title}", align="center", style="bold blue"))
         print_compared_specs(console, obj_compare_result)
-        print_diferences(console, obj_compare_result)
+        print_differences(console, obj_compare_result)
 
 
-def detail(ctx: typer.Context) -> None:
+def detail(
+    ctx: typer.Context,
+    hide_no_action_detail: Annotated[
+        bool,
+        typer.Option(
+            ...,
+            "--hide-no-action",
+            "-hna",
+            help="Hide the comparison details when no action is needed.",
+            is_flag=True,
+            show_default=True,
+        ),
+    ] = False,
+) -> None:
     """
     Analize the required changes to deploy the specified kubernetes object model
 
@@ -184,4 +200,4 @@ def detail(ctx: typer.Context) -> None:
             new_objects.append(desired_obj)
 
     print_new_objects(console, new_objects)
-    print_compare_results(console, compare_results)
+    print_compare_results(console, compare_results, hide_no_action_detail)

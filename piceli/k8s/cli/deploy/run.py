@@ -56,11 +56,15 @@ def _upsert_namespace(console: Console, namespace_name: str) -> None:
     client_ctx = ClientContext()
     try:
         client_ctx.core_api.read_namespace(name=namespace_name)
+        console.print(
+            f"[yellow]Namespace '{namespace_name}' already exists. No action required.[/]"
+        )
     except ApiException as ex:
         api_op_ex = api_exceptions.ApiOperationException.from_api_exception(ex)
         if not api_op_ex.not_found:
             raise api_op_ex from ex
         client_ctx.core_api.create_namespace(body=body)
+        console.print(f"[green]Namespace '{namespace_name}' created successfully.[/]")
 
 
 async def update_progress(
