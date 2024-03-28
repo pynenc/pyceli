@@ -1,6 +1,6 @@
 import typer
 
-from piceli.k8s.cli.deploy import plan, run, detail
+from piceli.k8s.cli.deploy import detail, plan, run
 
 app = typer.Typer()
 
