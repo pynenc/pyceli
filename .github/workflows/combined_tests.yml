@@ -58,7 +58,7 @@ jobs:
           sudo install kubectl /usr/local/bin/
       - name: Start Minikube
         run: |
-          minikube start --driver=docker --feature-gates=ExpandPersistentVolumes=true
+          minikube start --driver=docker --extra-config=kubelet.cgroup-driver=systemd --feature-gates=ExpandPersistentVolumes=true
           minikube update-context
       - name: Install Poetry
         uses: snok/install-poetry@v1
