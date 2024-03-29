@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "piceli"
-version = "0.0.2"
+version = "0.0.3"
 description = "Infrastructure for python"
 authors = ["Jose Diaz"]
 license = "MIT License"
@@ -9,11 +9,12 @@ homepage = "https://piceli.pynenc.org"
 documentation = "https://docs.piceli.pynenc.org"
 repository = "https://github.com/pynenc/piceli"
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Environment :: Console",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Distributed Computing",
 ]
