@@ -11,6 +11,9 @@ from piceli.k8s.ops import fetcher
 from piceli.k8s.ops.compare import compare_op, path
 from piceli.k8s.ops.deploy import deploy_op
 
+# from kubernetes.utils.quantity import parse_quantity
+
+
 if TYPE_CHECKING:
     from _pytest.fixtures import FixtureRequest
 
