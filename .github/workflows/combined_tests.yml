@@ -54,9 +54,11 @@ jobs:
         run: |
           curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
           sudo install minikube-linux-amd64 /usr/local/bin/minikube
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          sudo install kubectl /usr/local/bin/
       - name: Start Minikube
         run: |
-          minikube start
+          minikube start --driver=docker
           minikube update-context
       - name: Install Poetry
         uses: snok/install-poetry@v1
