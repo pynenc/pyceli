@@ -47,17 +47,20 @@ data:
       "key": "value"
     }
 
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: example-persistentvolumeclaim
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 0.2Gi # Changed from 0.1Gi to 0.2Gi
+
+# ---
+# Patch disabled, do not run in minikube Ubuntu
+#
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: example-persistentvolumeclaim
+# spec:
+#   accessModes:
+#     - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: 0.2Gi # Changed from 0.1Gi to 0.2Gi
 
 ---
 apiVersion: apps/v1
