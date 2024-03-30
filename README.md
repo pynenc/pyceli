@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://piceli.org/assets/img/avatar-icon.png" alt="Piceli" width="300">
+  <img src="https://raw.githubusercontent.com/pynenc/piceli/main/resources/piceli.logo.motherboard.000.webp" alt="Piceli" width="300">
 </p>
 <h1 align="center">Piceli</h1>
 <p align="center">
